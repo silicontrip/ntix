@@ -1,0 +1,58 @@
+#ifndef NTIX_LOADER_HPP
+#define NTIX_LOADER_HPP
+
+
+//#define NTSTATUS NTSTATUS_
+
+#include <windows.h>
+#include <winternl.h>
+#include <ntstatus.h>
+
+// #undef NTSTATUS
+// typedef unsigned long NTSTATUS;
+
+typedef struct _PEB_LDR_DATA_MINIMAL {
+       ULONG Length;
+       BOOLEAN Initialized;
+       HANDLE SsHandle;
+       LIST_ENTRY InLoadOrderModuleList;
+       LIST_ENTRY InMemoryOrderModuleList;
+} PEB_LDR_DATA_MINIMAL;
+
+typedef struct _LDR_DATA_TABLE_ENTRY_MINIMAL {
+       LIST_ENTRY InLoadOrderLinks;
+       LIST_ENTRY InMemoryOrderLinks;
+       LIST_ENTRY InInitializationOrderLinks;
+       PVOID DllBase;
+       PVOID EntryPoint;
+       ULONG SizeOfImage;
+       UNICODE_STRING FullDllName;
+       UNICODE_STRING BaseDllName;
+} LDR_DATA_TABLE_ENTRY_MINIMAL;
+
+typedef struct _PEB_MINIMAL {
+       BOOLEAN InheritedAddressSpace;
+       BOOLEAN ReadImageFileExecOptions;
+       BOOLEAN BeingDebugged;
+       union {
+               BOOLEAN BitField;
+               struct {
+                       BOOLEAN ImageUsesLargePages : 1;
+                       BOOLEAN IsProtectedProcess : 1;
+                       BOOLEAN IsImageDynamicallyRelocated : 1;
+                       BOOLEAN SkipPatchingUser32Forwarders : 1;
+                       BOOLEAN IsPackagedProcess : 1;
+                       BOOLEAN IsAppContainer : 1;
+                       BOOLEAN IsProtectedProcessLight : 1;
+                       BOOLEAN IsLongPathAwareProcess : 1;
+               };
+       };
+       HANDLE Mutant;
+       PVOID ImageBaseAddress;
+       PEB_LDR_DATA_MINIMAL* Ldr;
+} PEB_MINIMAL;
+
+PVOID GetModuleBase(const WCHAR* name);
+PVOID GetProcAddressNative(PVOID moduleBase, const char* funcName);
+
+#endif
