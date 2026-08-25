@@ -90,6 +90,10 @@ namespace ntix {
 		return result;
 	}
 
+	bool nstring::glob_match(const nstring& pattern) const {
+		return std::regex_match(this->str(), glob_compile(pattern));
+	}
+
 	nstring::nstring(UNICODE_STRING& uc)
 	{
 		std::wstring result(uc.Buffer, uc.Length/sizeof(WCHAR));
@@ -124,41 +128,6 @@ namespace ntix {
 				utf8_ = "";
 		}
 		return *utf8_;
-	}
-
-	const bool nstring::match(const ntix::nstring& pattern) const
-	{
-		size_t o = 0;
-		size_t p = 0;
-		size_t tsize = this->size();
-		size_t psize = pattern.size();
-		while (p< pattern.size())
-		{
-			if (pattern[p] == '*')
-			{
-				while (p<psize)
-				{
-					if (pattern[p]!='*')
-					{
-						while(o<tsize)
-						{
-							if (this->substr(o).match(pattern.substr(p)))
-								return true;
-							o++;
-						}
-						return false;
-					}
-					p++;
-				}
-				return true;
-			} else if (pattern[p] == '?') {
-				if (o >= this->size())
-					return false;
-				o++;
-				p++;
-			}
-		}
-		return o == tsize;
 	}
 
 	size_t nstring::size() const { return this->str().size(); }

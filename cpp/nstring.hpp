@@ -33,13 +33,13 @@ namespace ntix {
 			nstring(const WCHAR* buffer, ULONG lengthInBytes);
 
 			std::vector<nstring> glob_filter(const std::vector<nstring>& items, const nstring& pattern);
+			bool glob_match(const nstring& pattern) const;
 
 			const std::wstring& wc_str() const;
 			const UNICODE_STRING& unicode_str() const;
 			const std::string& str() const;
 			const char* c_str() const;
 
-			const bool match(const ntix::nstring& pattern) const;
 			size_t size() const;
 			bool empty() const;
 

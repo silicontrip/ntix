@@ -83,7 +83,7 @@ namespace ntix {
 		return oa_;
 	}
 
-	bool npath::glob_match(const npath& match) const { return path_.match(match.nstr()); }
+	bool npath::glob_match(const npath& match) const { return path_.glob_match(match.nstr()); }
 
 	const std::vector<nstring>& npath::elements() const
 	{
