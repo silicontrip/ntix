@@ -32,6 +32,13 @@ namespace ntix {
 			nstring(UNICODE_STRING& us);
 			nstring(const WCHAR* buffer, ULONG lengthInBytes);
 
+			// us_ is a lazy cache that points into wchar_'s own storage --
+			// must never be copied/moved by value, only ever recomputed for *this* instance.
+			nstring(const nstring& other);
+			nstring(nstring&& other) noexcept;
+			nstring& operator=(const nstring& other);
+			nstring& operator=(nstring&& other) noexcept;
+
 			std::vector<nstring> glob_filter(const std::vector<nstring>& items, const nstring& pattern);
 			bool glob_match(const nstring& pattern) const;
 

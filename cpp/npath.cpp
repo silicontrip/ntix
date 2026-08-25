@@ -2,6 +2,28 @@
 
 namespace ntix {
 
+	// oa_/uc_/elements_ intentionally omitted from the init list -- default member
+	// initializers give fresh, uncomputed caches rather than the source's stale/self pointers.
+	npath::npath(const npath& other) : path_(other.path_) {}
+	npath::npath(npath&& other) noexcept : path_(std::move(other.path_)) {}
+	npath& npath::operator= (const npath& other)
+	{
+		path_ = other.path_;
+		oa_ = OBJECT_ATTRIBUTES{};
+		uc_ = UNICODE_STRING{};
+		elements_.clear();
+		return *this;
+	}
+
+	npath& npath::operator= (npath&& other) noexcept
+	{
+		path_ = std::move(other.path_);
+		oa_ = OBJECT_ATTRIBUTES{};
+		uc_ = UNICODE_STRING{};
+		elements_.clear();
+		return *this;
+	}
+
 	const npath npath::normalise() const
 	{
 		if (!absolute())

@@ -105,6 +105,27 @@ namespace ntix {
 		wchar_ = std::wstring(buffer, lengthInBytes / sizeof(WCHAR));
 	}
 
+	// us_ intentionally omitted from the init list -- default member initializer
+	// gives us a fresh, uncomputed cache rather than the source's stale pointer.
+	nstring::nstring(const nstring& other) : utf8_(other.utf8_), wchar_(other.wchar_) {}
+	nstring::nstring(nstring&& other) noexcept : utf8_(std::move(other.utf8_)), wchar_(std::move(other.wchar_)) {}
+
+	nstring& nstring::operator= (const nstring& other)
+	{
+		utf8_ = other.utf8_;
+		wchar_ = other.wchar_;
+		us_ = UNICODE_STRING{};  // invalidate -- old Buffer pointed into the previous wchar_
+		return *this;
+	}
+
+	nstring& nstring::operator= (nstring&& other) noexcept
+	{
+		utf8_ = std::move(other.utf8_);
+		wchar_ = std::move(other.wchar_);
+		us_ = UNICODE_STRING{};
+		return *this;
+	}
+
 	const std::wstring& nstring::wc_str() const {
 		if (!wchar_)
 			wchar_ = NtixCoreLib::get_instance()->utf8_to_wide(*utf8_);

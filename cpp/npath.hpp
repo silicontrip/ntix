@@ -23,6 +23,13 @@ namespace ntix {
 			explicit npath(const nstring& p) : path_(std::move(p)) {}
 			//explicit npath(const std::string& p) : path_(nstring(p)) {}
 
+			// oa_/uc_ are lazy caches that self-reference (oa_.ObjectName == &uc_) or point
+			// into path_'s storage -- must never be copied/moved by value, only recomputed.
+			npath(const npath& other);
+			npath(npath&& other) noexcept;
+			npath& operator=(const npath& other);
+			npath& operator=(npath&& other) noexcept;
+
 			const npath append_path(const npath& p) const;
 			const npath normalise() const;
 			const npath resolve() const;
