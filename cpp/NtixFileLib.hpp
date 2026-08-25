@@ -12,6 +12,35 @@
 #include <winternl.h>
 
 #define IOCTL_MOUNTMGR_QUERY_POINTS  0x006D0008
+#define IOCTL_NSI_PROXY_EXECUTE_OPERATION 0x0012001B
+
+// The specific module GUID used by the TCP protocol provider driver inside the kernel
+const GUID NSI_TCP_MODULE_GUID = { 0xEB047A03, 0xB1F9, 0x472F, { 0xA7, 0x2E, 0x93, 0x4D, 0xEC, 0xC5, 0x36, 0xC9 } };
+
+// Structure definitions representing the internal tracking classes
+enum NSI_STRUCT_TYPE {
+	NSI_STRUCT_TCP_ALL = 3 // Tells the provider to return full tracking tables (including PIDs)
+};
+
+// \Device\Tcp
+// \Device\Nsi
+
+typedef struct _NSI_PROXY_QUERY_PARAMETERS {
+	ULONG_PTR Unknown1;
+	ULONG_PTR Unknown2;
+	GUID ModuleId;              // Pass NSI_TCP_MODULE_GUID
+	ULONG StructType;           // Pass NSI_STRUCT_TYPE entry (3)
+	ULONG Unknown3;
+	ULONG Unknown4;
+	PVOID QueryOutputBuffer;    // Pointer to destination table array receiving socket data
+	SIZE_T OutputBufferSize;    // Allocation size for table array response mapping
+	PVOID QueryOutputBuffer2;
+	SIZE_T OutputBufferSize2;
+	PVOID QueryOutputBuffer3;   // Array containing connection tracking statistics
+	SIZE_T OutputBufferSize3;
+	PVOID PidTableBuffer;       // Pointer to destination array receiving target PIDs mapping
+	SIZE_T PidTableBufferSize;  // Allocation size of the PID tracker destination
+} NSI_PROXY_QUERY_PARAMETERS;
 
 typedef struct _MOUNTMGR_MOUNT_POINT {
   ULONG  SymbolicLinkNameOffset;

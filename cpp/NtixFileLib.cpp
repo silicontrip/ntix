@@ -258,12 +258,10 @@ NTDLL_FILE_EXPORTS
 
 		if (!NT_SUCCESS(status))
 		{
+			free(mp);
 			close(hMpm);
-			throw nexception("NtixFileLib::mounts", status);
+			throw nexception("NtixFileLib::mounts device_ioctl_file", status);
 		}
-
-		std::cout << "size: " << mp->Size << std::endl;
-		std::cout << "number of mount: " << mp->NumberOfMountPoints << std::endl;
 
 		std::vector<nstring> mlist;
 		for (ULONG i=0; i<mp->NumberOfMountPoints; i++)
@@ -272,23 +270,6 @@ NTDLL_FILE_EXPORTS
 
 			nstring symbolicLink((WCHAR*)((char*)mp + mmp.SymbolicLinkNameOffset), mmp.SymbolicLinkNameLength);
 			mlist.push_back(symbolicLink);
-			//std::cout << "sym link: " << symbolicLink << std::endl;
-
-			//std::cout << "unique Id len: " << mmp.UniqueIdLength << std::endl;
-
-			//std::cout << "device name len: " << mmp.DeviceNameLength << std::endl;
-
-
-			/*
-			nstring uniqueId((WCHAR*)((char*)mp + mmp.UniqueIdOffset), mmp.UniqueIdLength);
-			std::cout << "unique id: " << uniqueId << std::endl;
-
-			nstring DeviceName((WCHAR*)((char*)mp + mmp.DeviceNameOffset), mmp.DeviceNameLength);
-			std::cout << "device name: " << uniqueId << std::endl;
-
-			std::cout << std::endl;
-			*/
-
 		}
 
 		free(mp);
