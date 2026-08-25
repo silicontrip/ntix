@@ -17,7 +17,7 @@ TEST = bin/test_cpp.exe
 
 TOOLS = \
 	bin/mount.exe \
-	bin/ols.exe 
+	bin/ls.exe 
 
 all: setup $(TOOLS)
 
@@ -33,7 +33,7 @@ setup:
 bin/test_cpp.exe: cpp/test_cpp.cpp $(CPP_CORE_OBJS)
 	$(CXX) $(CFLAGS) $(CXXFLAGS) $^ -o $@  $(CXX_LDFLAGS) $(LIBS)
 
-bin/ols.exe: cpp/ols.cpp $(CPP_CORE_OBJS)
+bin/ls.exe: cpp/ls.cpp $(CPP_CORE_OBJS)
 	$(CXX) $(CFLAGS) $(CXXFLAGS) $^ -o $@ $(CXX_LDFLAGS) $(LIBS)
 
 bin/mount.exe: cpp/mount.cpp $(CPP_CORE_OBJS)
@@ -46,6 +46,6 @@ clean:
 rebuild: clean all
 
 homedev: all
-	scp -r bin 10.101.222.65:/
+	scp -r bin 10.101.222.65:
 
 .PHONY: all clean rebuild setup

@@ -39,7 +39,7 @@ NTDLL_OBJECT_EXPORTS
 		return _NtQueryInformationProcess(ProcessHandle, ProcessInformationClass, ProcessInformation, ProcessInformationLength, ReturnLength);
 	}
 
-	NTSTATUS Ntix::read_virtual_memoryHANDLE ProcessHandle, PVOID BaseAddress, PVOID Buffer, ULONG NumberOfBytesToRead,PULONG NumberOfBytesRead) const
+	NTSTATUS NtixObjectLib::read_virtual_memory(HANDLE ProcessHandle, PVOID BaseAddress, PVOID Buffer, ULONG NumberOfBytesToRead,PULONG NumberOfBytesRead) const
 	{
 		return _NtReadVirtualMemory(ProcessHandle, BaseAddress, Buffer, NumberOfBytesToRead, NumberOfBytesRead);
 	}
