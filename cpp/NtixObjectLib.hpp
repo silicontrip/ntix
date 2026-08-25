@@ -18,7 +18,9 @@ typedef struct _OBJECT_DIRECTORY_INFORMATION
 	X(NtOpenSymbolicLinkObject, NTSTATUS, (PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES)) \
 	X(NtQuerySymbolicLinkObject, NTSTATUS, (HANDLE, PUNICODE_STRING, PULONG)) \
 	X(NtOpenDirectoryObject, NTSTATUS, (PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES)) \
-	X(NtQueryDirectoryObject, NTSTATUS, (HANDLE, PVOID, ULONG, BOOLEAN, BOOLEAN, PULONG, PULONG))
+	X(NtQueryDirectoryObject, NTSTATUS, (HANDLE, PVOID, ULONG, BOOLEAN, BOOLEAN, PULONG, PULONG)) \
+	X(NtQueryInformationProcess, NTSTATUS, (HANDLE, PROCESSINFOCLASS, PVOID, ULONG, PULONG)) \
+	X(NtReadVirtualMemory, NTSTATUS, (HANDLE, PVOID, PVOID, ULONG, PULONG))
 
 #define X(name, ret, args) typedef ret (NTAPI *_##name##_t) args;
 NTDLL_OBJECT_EXPORTS
@@ -45,14 +47,13 @@ NTDLL_OBJECT_EXPORTS
 
 		static NtixObjectLib* ptr;
 
-		void close(HANDLE h) const;
-		HANDLE open_symbolic_link(npath p, ACCESS_MASK am) const;
 		NTSTATUS query_symbolic_link(HANDLE hSym, PUNICODE_STRING usTarget, PULONG returnedLength) const;
-		ULONG query_symbolic_link_size(HANDLE hSym) const;
-		HANDLE open_directory(npath p, ACCESS_MASK am) const;
 		NTSTATUS query_directory(HANDLE hDir, PVOID buffer, ULONG bufferLength, BOOLEAN ReturnSingleEntry,
 			BOOLEAN restartScan, PULONG pContext, PULONG pReturnLength) const;
-
+		NTSTATUS query_information_process(HANDLE ProcessHandle, PROCESSINFOCLASS ProcessInformationClass,
+			PVOID ProcessInformation, ULONG ProcessInformationLength, PULONG ReturnLength) const;
+		NTSTATUS read_virtual_memory(HANDLE ProcessHandle, PVOID BaseAddress,PVOID Buffer,
+			ULONG NumberOfBytesToRead,PULONG NumberOfBytesRead) const;
 
 	public:
 		static NtixObjectLib* get_instance();
@@ -62,7 +63,13 @@ NTDLL_OBJECT_EXPORTS
 		NtixObjectLib& operator=(const NtixObjectLib&) = delete;
 		NtixObjectLib& operator=(NtixObjectLib&&) = delete;
 
+		// if it throws and doesn't return NTSTATUS, it's public
+
+		void close(HANDLE h) const;
+		HANDLE open_symbolic_link(npath p, ACCESS_MASK am) const;
+		ULONG query_symbolic_link_size(HANDLE hSym) const;
 		const npath get_symbolic_link_path(npath p) const;
+		HANDLE open_directory(npath p, ACCESS_MASK am) const;
 		std::vector<directory_info> read_directory(npath p) const;
 		const nstring get_type(npath p) const;
 		bool is_directory(npath p) const;

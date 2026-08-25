@@ -22,6 +22,29 @@ NTDLL_OBJECT_EXPORTS
 		return ptr;
 	}
 
+// Nt* wrappers, private, return NTSTATUS, do not throw.
+	NTSTATUS NtixObjectLib::query_symbolic_link(HANDLE hSym, PUNICODE_STRING usTarget, PULONG returnedLength) const
+	{
+		return _NtQuerySymbolicLinkObject(hSym, usTarget, returnedLength);
+	}
+
+	NTSTATUS NtixObjectLib::query_directory(HANDLE hDir, PVOID buffer, ULONG bufferLength, BOOLEAN ReturnSingleEntry, BOOLEAN restartScan, PULONG pContext, PULONG pReturnLength) const
+	{
+		return _NtQueryDirectoryObject(hDir, buffer, bufferLength, ReturnSingleEntry, restartScan, pContext, pReturnLength);
+	}
+
+	NTSTATUS NtixObjectLib::query_information_process(HANDLE ProcessHandle, PROCESSINFOCLASS ProcessInformationClass,
+		PVOID ProcessInformation, ULONG ProcessInformationLength, PULONG ReturnLength) const
+	{
+		return _NtQueryInformationProcess(ProcessHandle, ProcessInformationClass, ProcessInformation, ProcessInformationLength, ReturnLength);
+	}
+
+	NTSTATUS Ntix::read_virtual_memoryHANDLE ProcessHandle, PVOID BaseAddress, PVOID Buffer, ULONG NumberOfBytesToRead,PULONG NumberOfBytesRead) const
+	{
+		return _NtReadVirtualMemory(ProcessHandle, BaseAddress, Buffer, NumberOfBytesToRead, NumberOfBytesRead);
+	}
+
+// semantic calls, public, return a value, throw on NTSTATUS error
 	void NtixObjectLib::close(HANDLE h) const
 	{
 		NTSTATUS s = _NtClose(h);
@@ -36,11 +59,6 @@ NTDLL_OBJECT_EXPORTS
 		if (!NT_SUCCESS(s))
 			throw nexception("NtixObjectLib::open_symbolic_link",s);
 		return hSym;
-	}
-
-	NTSTATUS NtixObjectLib::query_symbolic_link(HANDLE hSym, PUNICODE_STRING usTarget, PULONG returnedLength) const
-	{
-		return _NtQuerySymbolicLinkObject(hSym, usTarget, returnedLength);
 	}
 
 	ULONG NtixObjectLib::query_symbolic_link_size(HANDLE hSym) const
@@ -65,11 +83,6 @@ NTDLL_OBJECT_EXPORTS
 		if (!NT_SUCCESS(s))
 			throw nexception("NtixObjectLib::open_directory",s);
 		return hDir;
-	}
-
-	NTSTATUS NtixObjectLib::query_directory(HANDLE hDir, PVOID buffer, ULONG bufferLength, BOOLEAN ReturnSingleEntry, BOOLEAN restartScan, PULONG pContext, PULONG pReturnLength) const
-	{
-		return _NtQueryDirectoryObject(hDir, buffer, bufferLength, ReturnSingleEntry, restartScan, pContext, pReturnLength);
 	}
 
 	const npath NtixObjectLib::get_symbolic_link_path(npath p) const
