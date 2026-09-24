@@ -2,15 +2,21 @@
 
 namespace ntix {
 
-	std::regex nstring::glob_compile(const nstring& glob) {
+	bool nstring::is_glob()
+	{
+		return this->str().find_first_of("?*[]{}") != std::string::npos;
+	}
+
+	std::regex nstring::glob_compile() {
 		std::string regexStr = "^"; // Match from the start of the string
+		std::string glob = this->str();
 		regexStr.reserve(glob.size() * 2);
 
 		size_t i = 0;
 		size_t len = glob.size();
 
 		while (i < len) {
-			wchar_t c = glob[i];
+			char c = glob[i];
 
 			// 1. Handle double and single asterisks
 			if (c == '*') {
@@ -47,6 +53,30 @@ namespace ntix {
 				}
 				regexStr += ")";
 				if (i < len) i++; // Skip closing '}'
+			}
+			else if (c == '[') {
+				regexStr += "[";
+				i++;
+				// Handle [!...] negation (glob uses ! instead of ^)
+				if (i < len && glob[i] == '!') {
+					regexStr += "^";
+					i++;
+				}
+				// Handle literal ] if immediately after [
+				if (i < len && glob[i] == ']') {
+					regexStr += "\\]";
+					i++;
+				}
+				// Collect contents until closing ]
+				while (i < len && glob[i] != ']') {
+					if (std::string(".+^$()|\\").find(glob[i]) != std::string::npos) {
+						regexStr += "\\";
+					}
+					regexStr += glob[i];
+					i++;
+				}
+				if (i < len) i++;  // Skip closing ]
+				regexStr += "]";
 			}
             // 4. Handle escape characters
             else if (c == '\\') {

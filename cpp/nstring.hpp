@@ -40,7 +40,10 @@ namespace ntix {
 			nstring& operator=(nstring&& other) noexcept;
 
 			std::vector<nstring> glob_filter(const std::vector<nstring>& items, const nstring& pattern);
+			bool is_glob() const;
 			bool glob_match(const nstring& pattern) const;
+			std::regex nstring::glob_compile(const nstring& glob);
+
 
 			const std::wstring& wc_str() const;
 			const UNICODE_STRING& unicode_str() const;
