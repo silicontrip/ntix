@@ -117,7 +117,10 @@ int main (int argc, char* argv[])
 	} else {
 
 		// how to handle glob
-		//
+		// is glob?
+		// get parent
+		// list parent
+		// match
 
 		for(nstring arg: ag.get_arguments())
 		{
