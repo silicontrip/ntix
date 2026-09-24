@@ -52,9 +52,14 @@ namespace ntix {
 			size_t size() const;
 			const npath basename() const;
 			const npath parent() const;
-			// this returns a relative style path
+			// this returns a relative style path, never carries the trailing separator
 			const npath subpath(size_t begin, size_t len = npos) const;
 			bool absolute() const;
+			// a trailing '\' is not an element; it addresses the namespace beneath the
+			// final element (\Device\HarddiskVolume3\ is the volume root, not the device)
+			bool trailing() const;
+			const npath as_container() const;   // for file system directory opens
+			const npath strip_trailing() const; // for object manager opens
 			const nstring type() const;
 
 			bool operator==(const npath& n) const;
