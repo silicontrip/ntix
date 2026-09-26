@@ -132,10 +132,10 @@ NTDLL_OBJECT_EXPORTS
 
 		// these two always seem to be needed when things go wrong
 		//std::cerr << "NtixObjectLib::get_type path: "  << p << std::endl;
-		//std::cerr << "NtixObjectLib::get_type parent path: "  << p.parent() << std::endl;
+		//std::cerr << "NtixObjectLib::get_type parent path: "  << p.object_parent() << std::endl;
 
 		try {
-			std::vector<directory_info> dlist = read_directory(p.parent());
+			std::vector<directory_info> dlist = read_directory(p.object_parent());
 			for (directory_info ent: dlist)
 			{
 				if (p.basename() == ent.name)

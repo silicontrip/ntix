@@ -42,7 +42,7 @@ namespace ntix {
 
 			const npath unresolve(const npath& user, const npath& converted) const;
 			bool glob_match(const npath& match) const;
-			std::vector<npath> expand_glob() const;
+			std::vector<npath> glob_expand() const;
 			OBJECT_ATTRIBUTES& oa(ULONG oa_flags) const;
 			const std::string& str() const;
 			const nstring& nstr() const;
@@ -53,6 +53,9 @@ namespace ntix {
 			size_t size() const;
 			const npath basename() const;
 			const npath parent() const;
+			const npath object_parent() const;
+			const npath file_parent() const;
+
 			// this returns a relative style path, never carries the trailing separator
 			const npath subpath(size_t begin, size_t len = npos) const;
 			bool absolute() const;

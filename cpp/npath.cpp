@@ -56,7 +56,7 @@ namespace ntix {
 		return *this;  // nothing in the path resolved as a symlink -- already normalised
 	}
 
-	std::vector<npath> npath::expand_glob() const
+	std::vector<npath> npath::glob_expand() const
 	{
 		// If pattern has no wildcards, return as-is
 		if (!nstr().is_glob())
@@ -68,6 +68,7 @@ namespace ntix {
 
 		// Resolve to absolute and split into directory + pattern
 		npath abs_pattern = resolve();
+		std::cerr << "npath::glob_expand() abs_pattern: " << abs_pattern << std::endl;
 		npath dir = abs_pattern.parent();
 		nstring glob_part = abs_pattern.basename().nstr();
 
@@ -169,7 +170,8 @@ namespace ntix {
 		std::string segment;
 		while(std::getline(pathstream, segment, '\\'))
 		{
-			elements_.push_back(nstring(segment));
+			if (!segment.empty())
+				elements_.push_back(nstring(segment));
 		}
 		// getline drops the empty token after a trailing '\' -- see trailing()
 		return elements_;
@@ -181,7 +183,7 @@ namespace ntix {
 
 	size_t npath::length() const { return path_.size(); }
 
-	size_t npath::size() const { return elements().size(); }
+	size_t npath::size() const { return elements().size() + (absolute() ? 1 : 0); }
 
 	const npath npath::basename() const { return npath(elements().back()); }
 
@@ -203,11 +205,20 @@ namespace ntix {
 	const npath npath::parent() const {
 		nstring t = strip_trailing().type();
 		if (t == "Object")
-			return subpath(0,elements().size()-1);
+			return subpath(0,size()-1);
 		else
-			return subpath(0,elements().size()-1).as_container();
+			return subpath(0,size()-1).as_container();
 	}
 
+	const npath npath::object_parent() const
+	{
+		return subpath(0,size()-1);
+	}
+
+	const npath npath::file_parent() const
+	{
+		return subpath(0,size()-1).as_container();
+	}
 
 	// \Device\HarddiskVolume3\Users
 	// 0\1\2\3 size = 3
@@ -222,14 +233,22 @@ namespace ntix {
 		if (begin==0 && absolute() && len == 1)
 			return npath("\\");
 
+
+
+		std::string result;
+
+		if (begin == 0 && absolute())
+		{
+			result = "\\";
+			len --;
+		}
+
 		size_t sz = elements().size();
 		if (len > sz)
 			len = sz;
 		size_t end = begin + len;
 		if (end > sz)
 			end = sz;
-
-		std::string result;
 
 		for (size_t i = begin; i < end; i++) {
 			if (i != begin) result += '\\';
@@ -265,7 +284,7 @@ namespace ntix {
 		NtixObjectLib* nol = NtixObjectLib::get_instance();
 		try {
 			nstring type = nol->get_type(strip_trailing());
-			std::cerr << "DEBUG: npath::type: get_type succeeded: " << *this << std::endl;
+			//std::cerr << "DEBUG: npath::type: get_type succeeded: " << *this << std::endl;
 
 			// \Device\ is a sloppy directory; \Device\HarddiskVolume3\ is the namespace under the device
 			if (!trailing() || type == "Directory")
