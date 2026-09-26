@@ -229,6 +229,7 @@ NTDLL_FILE_EXPORTS
 		const HANDLE open(ULONGLONG fileId, ACCESS_MASK access, ULONG share, ULONG disposition, ULONG options, ULONG oa_flags = 0) const;
 
 		std::vector<file_directory_info> read_directory(npath p) const;
+		file_directory_info get_info(npath p) const;
 
 		void close(HANDLE h) const;
 		bool exists(npath p) const;
@@ -237,6 +238,7 @@ NTDLL_FILE_EXPORTS
 		std::vector<nstring> mounts() const;
 		void write_reparse(npath p, ULONG ReparseTag, USHORT ReparseDataLength, unsigned char* ReparseData) const;
 		void rename(npath sp, npath dp, BOOLEAN replace);
+		const nstring get_type(npath p) const;
 
 
 	};

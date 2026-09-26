@@ -344,4 +344,48 @@ NTDLL_FILE_EXPORTS
 			throw nexception("NtixFileLib::rename set_information_file",status);
 	}
 
+	const nstring NtixFileLib::get_type(npath p) const
+	{
+
+		file_directory_info f = get_info(p);
+
+		ULONG type = f.attrib;
+
+		if (type & 0x10)
+			return "Directory";
+
+		if (type & 0x400)
+			return "Reparse";
+
+		return "File";
+
+	}
+
+	file_directory_info NtixFileLib::get_info(npath p) const
+	{
+		HANDLE hFile = open(p,  SYNCHRONIZE | FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+							FILE_OPEN, FILE_OPEN_REPARSE_POINT | FILE_SYNCHRONOUS_IO_NONALERT | FILE_OPEN_FOR_BACKUP_INTENT, 0);
+
+		FILE_BASIC_INFORMATION fbi;
+		PIO_STATUS_BLOCK isb = {0};
+
+		NTSTATUS s = query_information_file(hFile, isb, &fbi, sizeof(FILE_BASIC_INFORMATION), FileBasicInformation);
+		close(hFile);
+		if (!NT_SUCCESS(s))
+			throw nexception("NtixFileLib::get_type query_information_file",s);
+
+		return {
+			p.nstr(),
+			fbi.CreationTime.QuadPart,
+			fbi.LastAccessTime.QuadPart,
+			fbi.LastWriteTime.QuadPart,
+			fbi.ChangeTime.QuadPart,
+			0,
+			0,
+			fbi.FileAttributes
+		};
+	}
+
+
+
 }

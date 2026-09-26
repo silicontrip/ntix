@@ -24,23 +24,25 @@ nstring attribute_str(ULONG a)
 {
 	string as = "";
 
-	as += a & 0x400000 ? "D" : "-";
-	as += a & 0x100000 ? "U" : "-";
-	as += a & 0x80000 ? "P" : "-";
-	as += a & 0x40000 ? "O" : "-";
-	as += a & 0x20000 ? "S" : "-";
-	as += a & 0x8000 ? "I" : "-";
-	as += a & 0x4000 ? "E" : "-";
-	as += a & 0x2000 ? "-" : "i"; // flag to indicate NOT something
-	as += a & 0x1000 ? "o" : "-";
-	as += a & 0x800 ? "C" : "-";
-	as += a & 0x400 ? "R" : "-";
-	as += a & 0x200 ? "s" : "-";
-	as += a & 0x100 ? "t" : "-";
-	as += a & 0x20 ? "a" : "-";
-	as += a & 0x10 ? "d" : "-";
-	as += a & 0x4 ? "y" : "-";
-	as += a & 0x2 ? "h" : "-";
+	as += a & 0x400000 ? "D" : "-";  // recall on data access
+	as += a & 0x100000 ? "U" : "-"; // unpinned
+	as += a & 0x80000 ? "P" : "-"; // pinned
+	as += a & 0x40000 ? "O" : "-"; // contains EA also listed as recall on open
+	as += a & 0x20000 ? "S" : "-"; // No scrub data
+	as += a & 0x8000 ? "I" : "-"; // integrity stream
+	as += a & 0x4000 ? "E" : "-"; // encrypted
+	as += a & 0x2000 ? "-" : "i"; // flag to indicate NOT something (content not indexed)
+	as += a & 0x1000 ? "o" : "-"; // offline
+	as += a & 0x800 ? "C" : "-"; // compressed
+	as += a & 0x400 ? "R" : "-"; // reparse
+	as += a & 0x200 ? "s" : "-"; // sparse
+	as += a & 0x100 ? "t" : "-"; // temporary
+	// as += a & 0x80 ? "n" : "-"; // normal, not system, not hidden
+	// as += a & 0x40 ? "b" : "-";  // device
+	as += a & 0x20 ? "a" : "-"; // archive
+	as += a & 0x10 ? "d" : "-"; // directory
+	as += a & 0x4 ? "y" : "-"; // system
+	as += a & 0x2 ? "h" : "-"; // hidden
 	as += a & 0x1 ? "-" : "w"; // read only, as opposed to not writable
 
 	return nstring(as);
@@ -130,15 +132,32 @@ int main (int argc, char* argv[])
 				try {
 
 					path = path.resolve();
+					cout << path.normalise() << endl;
+
 					nstring pt = path.type();
 
 					if (pt == "File") {
-						cout << path.normalise() << endl;
-						vector<file_directory_info> dl = nfl->read_directory(path);
-						std::sort(dl.begin(), dl.end(), sortFileName);
 
-						for (auto entry: dl)
+						nstring ft = nfl->get_type(path);
+						if (ft == "Directory")
 						{
+							cout << path.normalise() << endl;
+							vector<file_directory_info> dl = nfl->read_directory(path);
+							std::sort(dl.begin(), dl.end(), sortFileName);
+
+							for (auto entry: dl)
+							{
+								if (ls.long_format) {
+									nstring date_str = date_formatter(entry.wtime);
+									cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << entry.name << endl;
+								} else {
+									cout << entry.name << endl;
+								}
+							}
+						}
+						if (ft == "File")
+						{
+							file_directory_info entry = nfl->get_info(path);
 							if (ls.long_format) {
 								nstring date_str = date_formatter(entry.wtime);
 								cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << entry.name << endl;
@@ -185,19 +204,19 @@ int main (int argc, char* argv[])
 				} catch (nexception& e) {
 					switch (e.status()) {
 						case STATUS_OBJECT_TYPE_MISMATCH:
-							cerr << "ols: " << path << ": not a directory" << endl;
+							cerr << "ls: " << path << ": not a directory" << endl;
 							break;
 						case STATUS_OBJECT_NAME_INVALID:
-							cerr << "ols: " << path << ": invalid path" << endl;
+							cerr << "ls: " << path << ": invalid path" << endl;
 							break;
 						case STATUS_OBJECT_NAME_NOT_FOUND:
-							cerr << "ols: " << path << ": no such file or object" << endl;
+							cerr << "ls: " << path << ": no such file or object" << endl;
 							break;
 						case STATUS_OBJECT_PATH_NOT_FOUND:
-							cerr << "ols: " << path << ": path not found" << endl;
+							cerr << "ls: " << path << ": path not found" << endl;
 							break;
 						default:
-							cerr << "ols: " << arg << ": " << e.status_str() << " " << hex << "(0x" << e.status() << ")" << endl;
+							cerr << "ls: " << path << ": " << e.status_str() << " " << hex << "(0x" << e.status() << ")" << endl;
 					}
 				}
 			}
