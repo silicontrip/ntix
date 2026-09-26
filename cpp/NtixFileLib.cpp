@@ -176,7 +176,8 @@ NTDLL_FILE_EXPORTS
 	std::vector<file_directory_info> NtixFileLib::read_directory(npath p) const
 	{
 		// the trailing '\' is harmless on a directory and required at a device root
-		HANDLE hDir = open(p.as_container(), FILE_LIST_DIRECTORY | SYNCHRONIZE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, FILE_OPEN,
+		// I think we want to treat the user with respect and not correct their errors
+		HANDLE hDir = open(p, FILE_LIST_DIRECTORY | SYNCHRONIZE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, FILE_OPEN,
 			FILE_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_NONALERT | FILE_OPEN_FOR_BACKUP_INTENT);
 
 		PBYTE buffer = (PBYTE)malloc(65536);
