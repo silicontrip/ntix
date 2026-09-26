@@ -63,7 +63,7 @@ namespace ntix {
 			// a trailing '\' is not an element; it addresses the namespace beneath the
 			// final element (\Device\HarddiskVolume3\ is the volume root, not the device)
 			bool trailing() const;
-			const npath as_container() const;   // for file system directory opens
+			const npath with_trailing() const;   // for file system directory opens
 			const npath strip_trailing() const; // for object manager opens
 			const nstring type() const;
 

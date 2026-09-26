@@ -46,7 +46,7 @@ namespace ntix {
 				//	std::cout << "ntix::npath::normalise subpath(" << j << "): " << subpath(j) << std::endl;
 
 				npath joined = remainder.length() == 0 ? resolved : resolved.append_path(remainder);
-				return trailing() ? joined.as_container().normalise() : joined.normalise();
+				return trailing() ? joined.with_trailing().normalise() : joined.normalise();
 			} catch (const nexception& e) {
 				//std::cout << "ntix::npath::normalise nexception: " << e << std::endl;
 				if (e.status() != STATUS_OBJECT_TYPE_MISMATCH)
@@ -141,7 +141,7 @@ namespace ntix {
 		std::wstring full = NtixCoreLib::get_instance()->resolve_path(path_.wc_str());
 		//std::cerr << "npath::resolve() DEBUG: full: " << nstring(full) << std::endl;
 		if (trailing())
-			return npath(nstring("\\??\\" + nstring(full).str())).normalise().as_container();
+			return npath(nstring("\\??\\" + nstring(full).str())).normalise().with_trailing();
 		else
 			return npath(nstring("\\??\\" + nstring(full).str())).normalise();
 
@@ -250,7 +250,7 @@ namespace ntix {
 		if (t == "Object")
 			return subpath(0,size()-1);
 		else
-			return subpath(0,size()-1).as_container();
+			return subpath(0,size()-1).with_trailing();
 	}
 
 	const npath npath::object_parent() const
@@ -260,7 +260,7 @@ namespace ntix {
 
 	const npath npath::file_parent() const
 	{
-		return subpath(0,size()-1).as_container();
+		return subpath(0,size()-1).with_trailing();
 	}
 
 	// \Device\HarddiskVolume3\Users
@@ -314,7 +314,7 @@ namespace ntix {
 	// "\" is the OM root, not a trailing separator
 	bool npath::trailing() const { return path_.size() > 1 && path_.back() == '\\'; }
 
-	const npath npath::as_container() const
+	const npath npath::with_trailing() const
 	{
 		if (path_.size() == 0 || path_.back() == '\\')
 			return *this;
@@ -369,7 +369,7 @@ namespace ntix {
 				// std::cerr << "npath::type() DEBUG: type " << type << std::endl;
 				if (type == "Device" && el < sz)
 				{
-					if(nfl->exists(subpath(0,el).as_container()))
+					if(nfl->exists(subpath(0,el).with_trailing()))
 					{
 						//std::cerr << "npath::type() DEBUG: file system device found" << std::endl;
 
