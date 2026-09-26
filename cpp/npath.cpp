@@ -30,16 +30,19 @@ namespace ntix {
 		if (!absolute())
 			return *this;
 
+		// std::cerr << "ntix::npath::normalise path " << *this << std::endl;
+
+
 		size_t n = size();
-		for (size_t i = 2; i <= n; i++) {
+		for (size_t i = 1; i <= n; i++) {
 			try {
 
-				//std::cout << "ntix::npath::normalise subpath(0," << i << ") " << subpath(0,i) << std::endl;
+				// std::cerr << "ntix::npath::normalise subpath(0," << i << ") " << subpath(0,i) << std::endl;
 
 				npath resolved = NtixObjectLib::get_instance()->get_symbolic_link_path(subpath(0, i));
 				//std::cout << "ntix::npath::normalise resolved: " << resolved.str() << std::endl;
 
-				npath remainder = subpath(i);
+				npath remainder = subpath(i-1);
 				//for (size_t j=0; j < size(); j++)
 				//	std::cout << "ntix::npath::normalise subpath(" << j << "): " << subpath(j) << std::endl;
 
@@ -61,16 +64,21 @@ namespace ntix {
 		// If pattern has no wildcards, return as-is
 		if (!nstr().is_glob())
 		{
-			std::vector<npath> v;
-			v.push_back(*this);
-			return v;
+			//std::vector<npath> v;
+			//v.push_back(*this);
+			//return v;
+			return { *this };
 		}
 
 		// Resolve to absolute and split into directory + pattern
 		npath abs_pattern = resolve();
-		std::cerr << "npath::glob_expand() abs_pattern: " << abs_pattern << std::endl;
+		//std::cerr << "npath::glob_expand() abs_pattern: " << abs_pattern << std::endl;
 		npath dir = abs_pattern.parent();
+		//std::cerr << "npath::glob_expand() dir: " << dir << std::endl;
+
 		nstring glob_part = abs_pattern.basename().nstr();
+		//std::cerr << "npath::glob_expand() glob_part: " << glob_part << std::endl;
+
 
 		// List and filter
 		std::vector<nstring> names;
@@ -82,9 +90,17 @@ namespace ntix {
 				names.push_back(e.name);
 			}
 		} else {
-			std::vector<directory_info> entried = NtixObjectLib::get_instance()->read_directory(dir);
+			std::vector<directory_info> entries = NtixObjectLib::get_instance()->read_directory(dir);
+			for (const directory_info& e : entries) {
+				names.push_back(e.name);
+			}
 		}
+		//std::cerr << "npath::glob_expand() glob_filter" <<  std::endl;
+
 		std::vector<nstring> matches = glob_part.glob_filter(names);
+
+		//std::cerr << "npath::glob_expand() glob_filter done" <<  std::endl;
+
 
 		if (matches.empty()) {
 			return {};  // No matches
@@ -99,9 +115,13 @@ namespace ntix {
 		// Convert back to relative if input was relative
 		if (!absolute()) {
 			npath pattern_dir = parent();  // e.g., "." or "subdir"
-			npath cwd = npath(nstring(NtixCoreLib::get_instance()->resolve_path(L".")));
 
-			for (auto& r : results) {
+			npath cwd = npath(".").resolve();
+
+			//std::cerr << "npath::glob_expand() pattern_dir: " << pattern_dir << " cwd: " << cwd <<  std::endl;
+
+
+			for (npath& r : results) {
 				r = r.unresolve(pattern_dir, cwd);
 			}
 		}
@@ -115,11 +135,14 @@ namespace ntix {
 			return *this;  // already OM-absolute -- ntix_resolve_path never normalizes this branch either
 
 		std::wstring full = NtixCoreLib::get_instance()->resolve_path(path_.wc_str());
-		return npath(nstring("\\??\\" + nstring(full).str())).normalise();
+		//std::cerr << "npath::resolve() DEBUG: full: " << nstring(full) << std::endl;
+		return npath(nstring("\\??\\" + nstring(full).str())).normalise().as_container();
 }
 
 	const npath npath::append_path(const npath& path) const
 	{
+		if (empty())
+			return path;
 		if (path_.back() == '\\' && path.nstr().front() == '\\')
 			return npath(path_ + path.nstr().substr(1));
 		else if ( path_.back() != '\\' && path.nstr().front() != '\\')
@@ -137,6 +160,12 @@ namespace ntix {
 	const npath npath::unresolve(const npath& user, const npath& converted) const
 	{
 		// we should possible do checking that the head of this path matches converted
+
+		//std::cerr << "npath::unresolve " << *this << " user: " << user << " converted: " << converted << std::endl;
+
+		//if (user.empty())
+		//	return npath(path_.substr(converted.nstr().size()));
+		//else
 		return user.append_path(npath(path_.substr(converted.nstr().size())));
 	}
 
@@ -184,6 +213,9 @@ namespace ntix {
 	size_t npath::length() const { return path_.size(); }
 
 	size_t npath::size() const { return elements().size() + (absolute() ? 1 : 0); }
+
+	bool npath::empty() const { return size() == 0; }
+
 
 	const npath npath::basename() const { return npath(elements().back()); }
 
@@ -233,8 +265,6 @@ namespace ntix {
 		if (begin==0 && absolute() && len == 1)
 			return npath("\\");
 
-
-
 		std::string result;
 
 		if (begin == 0 && absolute())
@@ -277,6 +307,7 @@ namespace ntix {
 		return npath(path_.substr(0, path_.size() - 1));
 	}
 
+	/*
 	const nstring npath::type() const
 	{
 		if (!absolute())
@@ -297,6 +328,40 @@ namespace ntix {
 			return "File";
 		throw nexception("npath::type", STATUS_OBJECT_NAME_NOT_FOUND); // what NtCreateFile returns if not found
 	}
+*/
+	const nstring npath::type() const
+	{
+		// std::cerr << "npath::type() DEBUG: path: " << *this << std::endl;
+
+		if (!absolute())
+			return "File";
+		NtixObjectLib* nol = NtixObjectLib::get_instance();
+		NtixFileLib* nfl = NtixFileLib::get_instance();
+		bool file = false;
+		for (int el=1; el <= size(); el++)
+		{
+			try {
+				// std::cerr << "npath::type() DEBUG: test path: " << subpath(0,el) << std::endl;
+				nstring type = nol->get_type(subpath(0,el));
+				// std::cerr << "npath::type() DEBUG: type " << type << std::endl;
+				if (type == "Device")
+				{
+					if(nfl->exists(subpath(0,el).as_container()))
+						file = true;
+				}
+
+			} catch (nexception& e) {
+				// depending on the error here we do different things... maybe?
+				std::cerr << "npath::type() DEBUG: exception: " << e << std::endl;
+				if (file)
+					return "File";
+				else
+					return "Object";
+			}
+		}
+		return "Object";
+	}
+
 
 	// TODO: CASE SENSITIVITY
 	bool npath::operator==(const npath& n) const { return this->str() == n.str(); }

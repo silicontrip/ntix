@@ -51,6 +51,7 @@ namespace ntix {
 			const nstring& operator[] (size_t index) const;
 			size_t length() const;
 			size_t size() const;
+			bool empty() const;
 			const npath basename() const;
 			const npath parent() const;
 			const npath object_parent() const;

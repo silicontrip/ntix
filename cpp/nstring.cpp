@@ -26,13 +26,13 @@ namespace ntix {
 				//     regexStr += ".*"; // ** matches anything including slashes
 				//     i += 2;
 				// } else {
-					regexStr += "[^\\]*"; // * matches anything except slashes
+					regexStr += "[^\\\\]*"; // * matches anything except slashes
 					i++;
 				// }
             }
 			// 2. Handle single character wildcard
 			else if (c == '?') {
-				regexStr += "[^\\]";
+				regexStr += "[^\\\\]";
 				i++;
 			}
 			// 3. Handle alternation braces {abc,123}
@@ -110,11 +110,16 @@ namespace ntix {
         }
 
         regexStr += "$"; // Match to the end of the string
+
+		//std::cerr << "nstring::glob_compile " << regexStr << std::endl;
+
+
         return std::regex(regexStr, std::regex::optimize);
     }
 
 	std::vector<nstring> nstring::glob_filter(const std::vector<nstring>& items) const
 	{
+		//std::cerr << "nstring::glob_filter " << *this << std::endl;
 		std::regex re = glob_compile();
 		std::vector<nstring> result;
 		std::copy_if(items.begin(), items.end(), std::back_inserter(result),
