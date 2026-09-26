@@ -167,7 +167,7 @@ NTDLL_FILE_EXPORTS
 			close(hFile);
 		} catch (nexception& e) {
 			// we may want to throw on some exceptions
-			std::cerr << "DEBUG: NtixFileLib::exists exception: " << e << std::endl;
+			std::cerr << "DEBUG: NtixFileLib::exists path: " << p << " exception: " << e << std::endl;
 			return false;
 		}
 		return true;

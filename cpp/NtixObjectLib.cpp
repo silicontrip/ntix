@@ -130,15 +130,24 @@ NTDLL_OBJECT_EXPORTS
 		if (p == "\\")
 			return "Directory";
 
+		if (p.trailing())
+			throw(nexception("NtixObjectLib::get_type path has trailing \\", STATUS_OBJECT_NAME_NOT_FOUND));
+
+
 		// these two always seem to be needed when things go wrong
 		//std::cerr << "NtixObjectLib::get_type path: "  << p << std::endl;
 		//std::cerr << "NtixObjectLib::get_type parent path: "  << p.object_parent() << std::endl;
+
+		npath bname = p.basename();
+
+		//std::cerr << "NtixObjectLib::get_type basename: "  << bname << std::endl;
+
 
 		try {
 			std::vector<directory_info> dlist = read_directory(p.object_parent());
 			for (directory_info ent: dlist)
 			{
-				if (p.basename() == ent.name)
+				if (bname == ent.name)
 					return ent.type;
 			}
 		} catch (nexception& e) {

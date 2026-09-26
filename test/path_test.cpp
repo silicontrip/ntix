@@ -28,6 +28,7 @@ int main(int argc, char* argv[]) {
 			vector<npath> exp = pp.glob_expand();
 			for (npath p : exp) {
 				cout << p << " elements: " << p.size() << endl;
+				/*
 				for(int e=1; e<=p.size(); e++)
 				{
 					try {
@@ -37,6 +38,7 @@ int main(int argc, char* argv[]) {
 					}
 				}
 				cout << endl;
+				*/
 			}
 		}
 

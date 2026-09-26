@@ -32,7 +32,6 @@ namespace ntix {
 
 		// std::cerr << "ntix::npath::normalise path " << *this << std::endl;
 
-
 		size_t n = size();
 		for (size_t i = 1; i <= n; i++) {
 			try {
@@ -42,7 +41,7 @@ namespace ntix {
 				npath resolved = NtixObjectLib::get_instance()->get_symbolic_link_path(subpath(0, i));
 				//std::cout << "ntix::npath::normalise resolved: " << resolved.str() << std::endl;
 
-				npath remainder = subpath(i-1);
+				npath remainder = subpath(i);
 				//for (size_t j=0; j < size(); j++)
 				//	std::cout << "ntix::npath::normalise subpath(" << j << "): " << subpath(j) << std::endl;
 
@@ -64,11 +63,11 @@ namespace ntix {
 		// If pattern has no wildcards, return as-is
 		if (!nstr().is_glob())
 		{
-			//std::vector<npath> v;
-			//v.push_back(*this);
-			//return v;
 			return { *this };
 		}
+
+		std::cerr << "npath::glob_expand(): " << *this << std::endl;
+
 
 		// Resolve to absolute and split into directory + pattern
 		npath abs_pattern = resolve();
@@ -82,6 +81,11 @@ namespace ntix {
 
 		// List and filter
 		std::vector<nstring> names;
+
+		//nstring type = dir.type();
+
+		std::cerr << "npath::glob_expand() parent type: " << dir.type() << std::endl;
+
 
 		if (dir.type() == "File")
 		{
@@ -116,7 +120,7 @@ namespace ntix {
 		if (!absolute()) {
 			npath pattern_dir = parent();  // e.g., "." or "subdir"
 
-			npath cwd = npath(".").resolve();
+			npath cwd = npath(".\\").resolve();  // honestly I don't think this is the fix
 
 			//std::cerr << "npath::glob_expand() pattern_dir: " << pattern_dir << " cwd: " << cwd <<  std::endl;
 
@@ -136,7 +140,11 @@ namespace ntix {
 
 		std::wstring full = NtixCoreLib::get_instance()->resolve_path(path_.wc_str());
 		//std::cerr << "npath::resolve() DEBUG: full: " << nstring(full) << std::endl;
-		return npath(nstring("\\??\\" + nstring(full).str())).normalise().as_container();
+		if (trailing())
+			return npath(nstring("\\??\\" + nstring(full).str())).normalise().as_container();
+		else
+			return npath(nstring("\\??\\" + nstring(full).str())).normalise();
+
 }
 
 	const npath npath::append_path(const npath& path) const
@@ -217,7 +225,10 @@ namespace ntix {
 	bool npath::empty() const { return size() == 0; }
 
 
-	const npath npath::basename() const { return npath(elements().back()); }
+	const npath npath::basename() const {
+		//std::cerr << "npath::basename size(): " << size() << std::endl;
+		return npath(subpath(size()-1));
+	}
 
 	// \  = 0
 	// \Device = 1
@@ -272,6 +283,8 @@ namespace ntix {
 			result = "\\";
 			len --;
 		}
+		if (absolute() && begin > 0)
+			begin --;
 
 		size_t sz = elements().size();
 		if (len > sz)
@@ -280,10 +293,18 @@ namespace ntix {
 		if (end > sz)
 			end = sz;
 
+		//std::cerr << "npath::subpath begin: " << begin << " end: " << end << std::endl;
+
 		for (size_t i = begin; i < end; i++) {
 			if (i != begin) result += '\\';
 			result += elements_[i].str();
 		}
+
+		//std::cerr << "npath::subpath size(): " << size() << " end: " << end << std::endl;
+		if (sz == end && trailing())
+			result += "\\";
+
+
 		return npath(nstring(result));
 	}
 
@@ -331,29 +352,38 @@ namespace ntix {
 */
 	const nstring npath::type() const
 	{
-		// std::cerr << "npath::type() DEBUG: path: " << *this << std::endl;
+		//std::cerr << "npath::type() DEBUG: path: " << *this << std::endl;
 
 		if (!absolute())
 			return "File";
 		NtixObjectLib* nol = NtixObjectLib::get_instance();
 		NtixFileLib* nfl = NtixFileLib::get_instance();
+
+		size_t sz = size();
 		bool file = false;
-		for (int el=1; el <= size(); el++)
+		for (int el=1; el <= sz; el++)
 		{
 			try {
-				// std::cerr << "npath::type() DEBUG: test path: " << subpath(0,el) << std::endl;
+				//std::cerr << "npath::type() DEBUG: " << el << "/" << sz << " test path: " << subpath(0,el) << std::endl;
 				nstring type = nol->get_type(subpath(0,el));
 				// std::cerr << "npath::type() DEBUG: type " << type << std::endl;
-				if (type == "Device")
+				if (type == "Device" && el < sz)
 				{
 					if(nfl->exists(subpath(0,el).as_container()))
+					{
+						//std::cerr << "npath::type() DEBUG: file system device found" << std::endl;
+
 						file = true;
+					}
 				}
 
 			} catch (nexception& e) {
 				// depending on the error here we do different things... maybe?
-				std::cerr << "npath::type() DEBUG: exception: " << e << std::endl;
 				if (file)
+					return "File";
+				//std::cerr << "npath::type() DEBUG: exception: " << e << " test path: " << subpath(0,el) <<  std::endl;
+
+				if(nfl->exists(subpath(0,el)))
 					return "File";
 				else
 					return "Object";
