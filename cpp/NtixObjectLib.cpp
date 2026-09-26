@@ -187,12 +187,7 @@ NTDLL_OBJECT_EXPORTS
 	HANDLE NtixObjectLib::open_directory(npath p, ACCESS_MASK am) const
 	{
 		HANDLE hDir;
-<<<<<<< HEAD
 		NTSTATUS s = _NtOpenDirectoryObject(&hDir, am, &p.oa(0));
-=======
-		// the object manager rejects \Device\ with STATUS_OBJECT_NAME_INVALID
-		NTSTATUS s = _NtOpenDirectoryObject(&hDir, am, &p.strip_trailing().oa(0));
->>>>>>> 8008defb673f4b2c7507bde812e2d1a529d82d08
 		if (!NT_SUCCESS(s))
 			throw nexception("NtixObjectLib::open_directory",s);
 		return hDir;

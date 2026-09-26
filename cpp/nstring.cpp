@@ -2,12 +2,13 @@
 
 namespace ntix {
 
-	bool nstring::is_glob()
+	bool nstring::is_glob() const
 	{
 		return this->str().find_first_of("?*[]{}") != std::string::npos;
 	}
 
-	std::regex nstring::glob_compile() {
+	std::regex nstring::glob_compile() const
+	{
 		std::string regexStr = "^"; // Match from the start of the string
 		std::string glob = this->str();
 		regexStr.reserve(glob.size() * 2);
@@ -112,8 +113,9 @@ namespace ntix {
         return std::regex(regexStr, std::regex::optimize);
     }
 
-	std::vector<nstring> nstring::glob_filter(const std::vector<nstring>& items, const nstring& pattern) {
-		std::regex re = glob_compile(pattern);
+	std::vector<nstring> nstring::glob_filter(const std::vector<nstring>& items) const
+	{
+		std::regex re = glob_compile();
 		std::vector<nstring> result;
 		std::copy_if(items.begin(), items.end(), std::back_inserter(result),
 			[&](const nstring& s) { return std::regex_match(s.str(), re); });
@@ -121,7 +123,7 @@ namespace ntix {
 	}
 
 	bool nstring::glob_match(const nstring& pattern) const {
-		return std::regex_match(this->str(), glob_compile(pattern));
+		return std::regex_match(this->str(), pattern.glob_compile());
 	}
 
 	nstring::nstring(UNICODE_STRING& uc)

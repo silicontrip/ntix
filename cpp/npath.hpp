@@ -42,6 +42,7 @@ namespace ntix {
 
 			const npath unresolve(const npath& user, const npath& converted) const;
 			bool glob_match(const npath& match) const;
+			std::vector<npath> expand_glob() const;
 			OBJECT_ATTRIBUTES& oa(ULONG oa_flags) const;
 			const std::string& str() const;
 			const nstring& nstr() const;

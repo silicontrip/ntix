@@ -56,11 +56,14 @@ namespace ntix {
 		return *this;  // nothing in the path resolved as a symlink -- already normalised
 	}
 
-	std::vector<npath> expand_glob() {
+	std::vector<npath> npath::expand_glob() const
+	{
 		// If pattern has no wildcards, return as-is
-		if (!this->nstr().is_glob())
+		if (!nstr().is_glob())
 		{
-			return { this };
+			std::vector<npath> v;
+			v.push_back(*this);
+			return v;
 		}
 
 		// Resolve to absolute and split into directory + pattern
@@ -80,7 +83,7 @@ namespace ntix {
 		} else {
 			std::vector<directory_info> entried = NtixObjectLib::get_instance()->read_directory(dir);
 		}
-		std::vector<nstring> matches = nstring::glob_filter(names, glob_part);
+		std::vector<nstring> matches = glob_part.glob_filter(names);
 
 		if (matches.empty()) {
 			return {};  // No matches
@@ -93,9 +96,9 @@ namespace ntix {
 		}
 
 		// Convert back to relative if input was relative
-		if (!pattern.absolute()) {
-			npath pattern_dir = pattern.parent();  // e.g., "." or "subdir"
-			npath cwd = npath(NtixCoreLib::get_instance()->resolve_path(nstring(".")));
+		if (!absolute()) {
+			npath pattern_dir = parent();  // e.g., "." or "subdir"
+			npath cwd = npath(nstring(NtixCoreLib::get_instance()->resolve_path(L".")));
 
 			for (auto& r : results) {
 				r = r.unresolve(pattern_dir, cwd);
@@ -198,7 +201,7 @@ namespace ntix {
 	// \Device\HarddiskVolume1 -> \Device returned
 
 	const npath npath::parent() const {
-		string t = type(strip_trailing());
+		nstring t = strip_trailing().type();
 		if (t == "Object")
 			return subpath(0,elements().size()-1);
 		else

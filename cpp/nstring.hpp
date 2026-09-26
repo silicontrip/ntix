@@ -19,7 +19,7 @@ namespace ntix {
 			mutable std::optional<std::wstring> wchar_;
 			mutable UNICODE_STRING us_{};  // zero-init: Buffer==nullptr is "not yet computed"
 
-			static std::regex glob_compile(const nstring& glob);
+			std::regex glob_compile() const;
 
 
 		public:
@@ -39,10 +39,9 @@ namespace ntix {
 			nstring& operator=(const nstring& other);
 			nstring& operator=(nstring&& other) noexcept;
 
-			std::vector<nstring> glob_filter(const std::vector<nstring>& items, const nstring& pattern);
+			std::vector<nstring> glob_filter(const std::vector<nstring>& items) const;
 			bool is_glob() const;
 			bool glob_match(const nstring& pattern) const;
-			std::regex nstring::glob_compile(const nstring& glob);
 
 
 			const std::wstring& wc_str() const;
