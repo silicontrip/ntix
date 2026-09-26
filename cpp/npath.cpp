@@ -30,15 +30,15 @@ namespace ntix {
 		if (!absolute())
 			return *this;
 
-		// std::cerr << "ntix::npath::normalise path " << *this << std::endl;
+		//std::cerr << "ntix::npath::normalise path " << *this << std::endl;
 
 		size_t n = size();
 		for (size_t i = 1; i <= n; i++) {
 			try {
 
-				// std::cerr << "ntix::npath::normalise subpath(0," << i << ") " << subpath(0,i) << std::endl;
+				//std::cerr << "ntix::npath::normalise subpath(0," << i << ") " << subpath(0,i) << std::endl;
 
-				npath resolved = NtixObjectLib::get_instance()->get_symbolic_link_path(subpath(0, i));
+				npath resolved = NtixObjectLib::get_instance()->get_symbolic_link_path(subpath(0, i).strip_trailing());
 				//std::cout << "ntix::npath::normalise resolved: " << resolved.str() << std::endl;
 
 				npath remainder = subpath(i);
@@ -66,7 +66,7 @@ namespace ntix {
 			return { *this };
 		}
 
-		std::cerr << "npath::glob_expand(): " << *this << std::endl;
+		//std::cerr << "npath::glob_expand(): " << *this << std::endl;
 
 
 		// Resolve to absolute and split into directory + pattern
@@ -84,7 +84,7 @@ namespace ntix {
 
 		//nstring type = dir.type();
 
-		std::cerr << "npath::glob_expand() parent type: " << dir.type() << std::endl;
+		//std::cerr << "npath::glob_expand() parent type: " << dir.type() << std::endl;
 
 
 		if (dir.type() == "File")
@@ -120,13 +120,13 @@ namespace ntix {
 		if (!absolute()) {
 			npath pattern_dir = parent();  // e.g., "." or "subdir"
 
-			npath cwd = npath(".\\").resolve();  // honestly I don't think this is the fix
+			// npath cwd = npath(".\\").resolve();  // honestly I don't think this is the fix
 
-			//std::cerr << "npath::glob_expand() pattern_dir: " << pattern_dir << " cwd: " << cwd <<  std::endl;
+			//std::cerr << "npath::glob_expand() pattern_dir: " << pattern_dir << " dir: " << dir <<  std::endl;
 
 
 			for (npath& r : results) {
-				r = r.unresolve(pattern_dir, cwd);
+				r = r.unresolve(pattern_dir, dir);
 			}
 		}
 
@@ -381,6 +381,10 @@ namespace ntix {
 				// depending on the error here we do different things... maybe?
 				if (file)
 					return "File";
+
+				if (e.status() == STATUS_OBJECT_NAME_NOT_FOUND)
+					return "Object";
+
 				//std::cerr << "npath::type() DEBUG: exception: " << e << " test path: " << subpath(0,el) <<  std::endl;
 
 				if(nfl->exists(subpath(0,el)))

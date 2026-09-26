@@ -131,7 +131,7 @@ NTDLL_OBJECT_EXPORTS
 			return "Directory";
 
 		if (p.trailing())
-			throw(nexception("NtixObjectLib::get_type path has trailing \\", STATUS_OBJECT_NAME_NOT_FOUND));
+			throw(nexception("NtixObjectLib::get_type path has trailing \\", STATUS_OBJECT_NAME_INVALID));  // have to check what the NtOpen returns on this sort of path.
 
 
 		// these two always seem to be needed when things go wrong
