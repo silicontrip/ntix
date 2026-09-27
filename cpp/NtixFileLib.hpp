@@ -138,51 +138,51 @@ NTDLL_FILE_EXPORTS
 		static NtixFileLib* ptr;
 
 		// NTSTATUS close_(HANDLE h) const;
-		NTSTATUS create_file(PHANDLE FileHandle, ACCESS_MASK DesiredAccess,
+		NTSTATUS create(PHANDLE FileHandle, ACCESS_MASK DesiredAccess,
 			POBJECT_ATTRIBUTES ObjectAttributes, PIO_STATUS_BLOCK IoStatusBlock,
 			PLARGE_INTEGER AllocationSize, ULONG FileAttributes, ULONG ShareAccess,
 			ULONG CreateDisposition,ULONG CreateOptions, PVOID EaBuffer,
 			ULONG EaLength) const;
 
-		NTSTATUS query_directory_file(HANDLE hDir, PVOID buffer, ULONG bufferLength,
+		NTSTATUS query_directory(HANDLE hDir, PVOID buffer, ULONG bufferLength,
 			ULONG infoClass, BOOLEAN restartScan, PULONG pReturnLength) const;
 
 		//NTSTATUS device_ioctl_file(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock,
 		//	ULONG IoControlCode, PVOID InputBuffer, ULONG InputBufferLength,
 		//	PVOID OutputBuffer, ULONG OutputBufferLength) const;
 
-		NTSTATUS fscontrol_file(HANDLE FileHandle, HANDLE Event, PVOID ApcRoutine, PVOID ApcContext,
+		NTSTATUS fscontrol(HANDLE FileHandle, HANDLE Event, PVOID ApcRoutine, PVOID ApcContext,
 			PIO_STATUS_BLOCK IoStatusBlock, ULONG FsControlCode,
 			PVOID InputBuffer, ULONG InputBufferLength, PVOID OutputBuffer,
 			ULONG OutputBufferLength) const;
 
-		NTSTATUS set_information_file(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock,
+		NTSTATUS set_information(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock,
 			PVOID FileInformation, ULONG Length, ULONG FileInformationClass) const;
 
-		NTSTATUS query_information_file(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock,
+		NTSTATUS query_information(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock,
 			PVOID FileInformation, ULONG Length, ULONG FileInformationClass) const;
 
-		NTSTATUS query_volume_file(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock,
+		NTSTATUS query_volume(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock,
 			PVOID FsInformation, ULONG Length, ULONG FsInformationClass) const;
 
-		NTSTATUS device_ioctl_file(HANDLE FileHandle, HANDLE Event, PVOID ApcRoutine, PVOID ApcContext,
+		NTSTATUS device_ioctl(HANDLE FileHandle, HANDLE Event, PVOID ApcRoutine, PVOID ApcContext,
 			PIO_STATUS_BLOCK IoStatusBlock, ULONG IoControlCode,
 			PVOID InputBuffer, ULONG InputBufferLength, PVOID OutputBuffer,
 			ULONG OutputBufferLength) const;
 
-		NTSTATUS read_file(HANDLE FileHandle, HANDLE Event, PVOID ApcRoutine, PVOID ApcContext,
+		NTSTATUS read(HANDLE FileHandle, HANDLE Event, PVOID ApcRoutine, PVOID ApcContext,
 			PIO_STATUS_BLOCK IoStatusBlock, PVOID Buffer, ULONG Length, PLARGE_INTEGER ByteOffset,
 			PULONG Key) const;
 
-		NTSTATUS write_file(HANDLE FileHandle, HANDLE Event, PVOID ApcRoutine, PVOID ApcContext,
+		NTSTATUS write(HANDLE FileHandle, HANDLE Event, PVOID ApcRoutine, PVOID ApcContext,
 			PIO_STATUS_BLOCK IoStatusBlock, PVOID Buffer, ULONG Length, PLARGE_INTEGER ByteOffset,
 			PULONG Key) const;
 
-		NTSTATUS query_ea_file(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock, PVOID Buffer,
+		NTSTATUS query_ea(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock, PVOID Buffer,
 			ULONG Length, BOOLEAN ReturnSingleEntry, PVOID EaList, ULONG EaListLength,
 			PULONG EaIndex, BOOLEAN RestartScan) const;
 
-		NTSTATUS set_ea_file(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock, PVOID Buffer,
+		NTSTATUS set_ea(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock, PVOID Buffer,
 			ULONG Length) const;
 
 	public:
