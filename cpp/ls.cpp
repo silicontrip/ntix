@@ -216,7 +216,9 @@ int main (int argc, char* argv[])
 							cerr << "ls: " << path << ": path not found" << endl;
 							break;
 						default:
-							cerr << "ls: " << path << ": " << e.status_str() << " " << hex << "(0x" << e.status() << ")" << endl;
+							//cerr << "ls: " << path << ": " << e.status_str() << " " << hex << "(0x" << e.status() << ")" << endl;
+							cerr << "ls: " << path << ": " << e << endl;
+
 					}
 				}
 			}

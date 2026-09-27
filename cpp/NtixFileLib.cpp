@@ -24,7 +24,7 @@ NTDLL_FILE_EXPORTS
 		return ptr;
 	}
 
-	NTSTATUS NtixFileLib::create_file(PHANDLE FileHandle, ACCESS_MASK DesiredAccess,
+	NTSTATUS NtixFileLib::create(PHANDLE FileHandle, ACCESS_MASK DesiredAccess,
 		POBJECT_ATTRIBUTES ObjectAttributes, PIO_STATUS_BLOCK IoStatusBlock,
 		PLARGE_INTEGER AllocationSize, ULONG FileAttributes, ULONG ShareAccess,
 		ULONG CreateDisposition, ULONG CreateOptions, PVOID EaBuffer,
@@ -36,7 +36,7 @@ NTDLL_FILE_EXPORTS
 			EaBuffer, EaLength);
 	}
 
-	NTSTATUS NtixFileLib::query_directory_file(HANDLE hDir, PVOID buffer, ULONG bufferLength, ULONG infoClass, BOOLEAN restartScan, PULONG pReturnLength) const
+	NTSTATUS NtixFileLib::query_directory(HANDLE hDir, PVOID buffer, ULONG bufferLength, ULONG infoClass, BOOLEAN restartScan, PULONG pReturnLength) const
 	{
 
 		IO_STATUS_BLOCK isb;
@@ -54,7 +54,7 @@ NTDLL_FILE_EXPORTS
 
 	}
 
-	NTSTATUS NtixFileLib::fscontrol_file(HANDLE FileHandle, HANDLE Event, PVOID ApcRoutine, PVOID ApcContext,
+	NTSTATUS NtixFileLib::fscontrol(HANDLE FileHandle, HANDLE Event, PVOID ApcRoutine, PVOID ApcContext,
 		PIO_STATUS_BLOCK IoStatusBlock, ULONG FsControlCode,
 		PVOID InputBuffer, ULONG InputBufferLength, PVOID OutputBuffer,
 		ULONG OutputBufferLength) const
@@ -63,25 +63,25 @@ NTDLL_FILE_EXPORTS
 			InputBuffer, InputBufferLength, OutputBuffer, OutputBufferLength);
 	}
 
-	NTSTATUS NtixFileLib::set_information_file(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock,
+	NTSTATUS NtixFileLib::set_information(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock,
 		PVOID FileInformation, ULONG Length, ULONG FileInformationClass) const
 	{
 		return _NtSetInformationFile(FileHandle, IoStatusBlock, FileInformation, Length, FileInformationClass);
 	}
 
-	NTSTATUS NtixFileLib::query_information_file(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock,
+	NTSTATUS NtixFileLib::query_information(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock,
 		PVOID FileInformation, ULONG Length, ULONG FileInformationClass) const
 	{
 		return _NtQueryInformationFile(FileHandle, IoStatusBlock, FileInformation, Length, FileInformationClass);
 	}
 
-	NTSTATUS NtixFileLib::query_volume_file(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock,
+	NTSTATUS NtixFileLib::query_volume(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock,
 		PVOID FsInformation, ULONG Length, ULONG FsInformationClass) const
 	{
 		return _NtQueryVolumeInformationFile(FileHandle, IoStatusBlock, FsInformation, Length, FsInformationClass);
 	}
 
-	NTSTATUS NtixFileLib::device_ioctl_file(HANDLE FileHandle, HANDLE Event, PVOID ApcRoutine, PVOID ApcContext,
+	NTSTATUS NtixFileLib::device_ioctl(HANDLE FileHandle, HANDLE Event, PVOID ApcRoutine, PVOID ApcContext,
 		PIO_STATUS_BLOCK IoStatusBlock, ULONG IoControlCode,
 		PVOID InputBuffer, ULONG InputBufferLength, PVOID OutputBuffer,
 		ULONG OutputBufferLength) const
@@ -90,28 +90,28 @@ NTDLL_FILE_EXPORTS
 			InputBuffer, InputBufferLength, OutputBuffer, OutputBufferLength);
 	}
 
-	NTSTATUS NtixFileLib::read_file(HANDLE FileHandle, HANDLE Event, PVOID ApcRoutine, PVOID ApcContext,
+	NTSTATUS NtixFileLib::read(HANDLE FileHandle, HANDLE Event, PVOID ApcRoutine, PVOID ApcContext,
 		PIO_STATUS_BLOCK IoStatusBlock, PVOID Buffer, ULONG Length, PLARGE_INTEGER ByteOffset,
 		PULONG Key) const
 	{
 		return _NtReadFile(FileHandle, Event, ApcRoutine, ApcContext, IoStatusBlock, Buffer, Length, ByteOffset, Key);
 	}
 
-	NTSTATUS NtixFileLib::write_file(HANDLE FileHandle, HANDLE Event, PVOID ApcRoutine, PVOID ApcContext,
+	NTSTATUS NtixFileLib::write(HANDLE FileHandle, HANDLE Event, PVOID ApcRoutine, PVOID ApcContext,
 		PIO_STATUS_BLOCK IoStatusBlock, PVOID Buffer, ULONG Length, PLARGE_INTEGER ByteOffset,
 		PULONG Key) const
 	{
 		return _NtWriteFile(FileHandle, Event, ApcRoutine, ApcContext, IoStatusBlock, Buffer, Length, ByteOffset, Key);
 	}
 
-	NTSTATUS NtixFileLib::query_ea_file(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock, PVOID Buffer,
+	NTSTATUS NtixFileLib::query_ea(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock, PVOID Buffer,
 		ULONG Length, BOOLEAN ReturnSingleEntry, PVOID EaList, ULONG EaListLength,
 		PULONG EaIndex, BOOLEAN RestartScan) const
 	{
 		return _NtQueryEaFile(FileHandle, IoStatusBlock, Buffer, Length, ReturnSingleEntry, EaList, EaListLength, EaIndex, RestartScan);
 	}
 
-	NTSTATUS NtixFileLib::set_ea_file(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock, PVOID Buffer, ULONG Length) const
+	NTSTATUS NtixFileLib::set_ea(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock, PVOID Buffer, ULONG Length) const
 	{
 		return _NtSetEaFile(FileHandle, IoStatusBlock, Buffer, Length);
 	}
@@ -193,7 +193,7 @@ NTDLL_FILE_EXPORTS
 		for (;;)
 		{
 
-			NTSTATUS status = query_directory_file(hDir, buffer, 65536, FileDirectoryInformation, restart, &retLen);
+			NTSTATUS status = query_directory(hDir, buffer, 65536, FileDirectoryInformation, restart, &retLen);
 			restart = FALSE;
 
 			if (status == STATUS_NO_MORE_FILES) break;
@@ -233,7 +233,7 @@ NTDLL_FILE_EXPORTS
 		GET_LENGTH_INFORMATION lengthInfo;
 		IO_STATUS_BLOCK isb;
 
-		NTSTATUS status = device_ioctl_file(hDevice, NULL, NULL, NULL, &isb, IOCTL_DISK_GET_LENGTH_INFO,
+		NTSTATUS status = device_ioctl(hDevice, NULL, NULL, NULL, &isb, IOCTL_DISK_GET_LENGTH_INFO,
 			NULL, 0, &lengthInfo, sizeof(lengthInfo));
 
 		if (!NT_SUCCESS(status))
@@ -255,14 +255,14 @@ NTDLL_FILE_EXPORTS
 
 		IO_STATUS_BLOCK isb;
 
-		NTSTATUS status = device_ioctl_file(hMpm, NULL, NULL, NULL, &isb, IOCTL_MOUNTMGR_QUERY_POINTS,
+		NTSTATUS status = device_ioctl(hMpm, NULL, NULL, NULL, &isb, IOCTL_MOUNTMGR_QUERY_POINTS,
 			&inputParam, sizeof(inputParam), mp, 4096);
 
 		if (!NT_SUCCESS(status))
 		{
 			free(mp);
 			close(hMpm);
-			throw nexception("NtixFileLib::mounts device_ioctl_file", status);
+			throw nexception("NtixFileLib::mounts device_ioctl", status);
 		}
 
 		std::vector<nstring> mlist;
@@ -298,7 +298,7 @@ NTDLL_FILE_EXPORTS
 
 			IO_STATUS_BLOCK isb;
 
-			status = fscontrol_file(hDir, NULL, NULL, NULL, &isb, FSCTL_SET_REPARSE_POINT, rdb, rdb->ReparseDataLength + 8, NULL, 0);
+			status = fscontrol(hDir, NULL, NULL, NULL, &isb, FSCTL_SET_REPARSE_POINT, rdb, rdb->ReparseDataLength + 8, NULL, 0);
 			close(hDir);
 
 		} catch (nexception& e) {
@@ -309,7 +309,7 @@ NTDLL_FILE_EXPORTS
 		free(rdb);
 
 		if (!NT_SUCCESS(status))
-			throw nexception("NtixFileLib::write_reparse fscontrol_file",status);
+			throw nexception("NtixFileLib::write_reparse fscontrol",status);
 
 	}
 
@@ -336,12 +336,12 @@ NTDLL_FILE_EXPORTS
 		memcpy(fri->FileName, &sp.nstr().wc_str() , wSize );
 
 		IO_STATUS_BLOCK isb;
-		NTSTATUS status = set_information_file(hFile, &isb, &fri, friSize, FileRenameInformation);
+		NTSTATUS status = set_information(hFile, &isb, &fri, friSize, FileRenameInformation);
 
 		free(fri);
 		close(hFile);
 		if (!NT_SUCCESS(status))
-			throw nexception("NtixFileLib::rename set_information_file",status);
+			throw nexception("NtixFileLib::rename set_information",status);
 	}
 
 	const nstring NtixFileLib::get_type(npath p) const
@@ -369,10 +369,10 @@ NTDLL_FILE_EXPORTS
 		FILE_BASIC_INFORMATION fbi;
 		PIO_STATUS_BLOCK isb = {0};
 
-		NTSTATUS s = query_information_file(hFile, isb, &fbi, sizeof(FILE_BASIC_INFORMATION), FileBasicInformation);
+		NTSTATUS s = query_information(hFile, isb, &fbi, sizeof(FILE_BASIC_INFORMATION), FileBasicInformation);
 		close(hFile);
 		if (!NT_SUCCESS(s))
-			throw nexception("NtixFileLib::get_type query_information_file",s);
+			throw nexception("NtixFileLib::get_info query_information",s);
 
 		return {
 			p.nstr(),
