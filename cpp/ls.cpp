@@ -13,13 +13,6 @@
 using namespace std;
 using namespace ntix;
 
-class NtixLs {
-
-	public:
-		bool dont_follow_symlinks;
-		bool long_format;
-
-};
 
 nstring attribute_str(ULONG a)
 {
@@ -93,6 +86,100 @@ void long_print (file_directory_info entry)
 }
 
 
+class NtixLs {
+
+	public:
+		bool dont_follow_symlinks_;
+		bool long_format_;
+		bool recursive_;
+		bool classify_;
+		bool hex_;
+		bool escape_;
+
+
+		nstring format_name (nstring s)
+		{
+			sstream ss;
+			if (hex_)
+			{
+					ss << "<";
+					std::wstring  w = s.wc_str();
+					for (ULONG i=0; i < w.size(); i++)
+						ss << hex << w[i];
+					ss << ">";
+					return ss.str();
+			} else if (escape_) {
+				for (ULONG i=0; i < s.size(); i++)
+				{
+					char c = s[i];
+					if (c < 32 || c > 126)
+						ss << "\\x" << hex << c;
+					else
+						ss << c;
+
+				}
+				return ss.str();
+			} else {
+				return s;
+			}
+
+		}
+
+		void print_columns(vector<nstring>entries) {
+			int width = NtixCoreLib::get_instance()->terminal_width();
+			int max_len = 0;
+			size_t count = entries.size();
+			for (nstring e : entries) {
+				if (e.size() > max_len) max_len = e.size();
+			}
+			max_len += 2; // spacing
+			int cols = width / max_len;
+			if (cols == 0) cols = 1;
+			int rows = (count + cols - 1) / cols;
+
+			for (int r = 0; r < rows; r++) {
+				for (int c = 0; c < cols; c++) {
+					int idx = c * rows + r;
+					if (idx < count) {
+						nstring ps = format_name(entries[idx]);
+						cout << setw(max_len) << ps;
+					}
+				}
+				cout << endl;
+			}
+		}
+
+		void list_vector_file(vector<file_directory_info> dl)
+		{
+			if (ls.long_format) {
+				for (file_directory_info entry: dl)
+					long_print(entry); // oh look a function.
+			} else {
+				print_columns()
+			}
+
+		}
+
+		void list_directory_file(npath p)
+		{
+			path = p.resolve();
+			// will be a file type
+			vector<file_directory_info> dl = nfl->read_directory(path);
+			std::sort(dl.begin(), dl.end(), sortFileName);
+			for (auto entry: dl)
+			{
+				if (ls.long_format) {
+					// should make this a function
+				} else {
+					cout << entry.name << endl;
+				}
+			}
+		}
+
+};
+
+
+
 int main (int argc, char* argv[])
 {
 
@@ -118,20 +205,9 @@ int main (int argc, char* argv[])
 	if (ag.argument_size() == 0)
 	{
 		try {
+			// list directory short/long
 			npath path(".");
-			path = path.resolve();
-			// will be a file type
-			vector<file_directory_info> dl = nfl->read_directory(path);
-			std::sort(dl.begin(), dl.end(), sortFileName);
-			for (auto entry: dl)
-			{
-				if (ls.long_format) {
-					// should make this a function
-					long_print(entry); // oh look a function.
-				} else {
-					cout << entry.name << endl;
-				}
-			}
+
 		} catch (nexception& e) {
 			cerr << "ls: " << e << endl;
 		}
@@ -235,10 +311,6 @@ int main (int argc, char* argv[])
 				nstring pt = path.type();
 				if (pt == "File") {
 
-					if (!first)
-						cout << endl;
-					first = false;
-					cout << relpath  << endl;
 					vector<file_directory_info> dl = nfl->read_directory(path);
 					std::sort(dl.begin(), dl.end(), sortFileName);
 
