@@ -1,3 +1,4 @@
+#include "NtixFileLib.hpp"
 #include "NtixObjectLib.hpp"
 #include "narguments.hpp"
 #include "npath.hpp"
@@ -77,6 +78,21 @@ bool sortFileName(const file_directory_info& a, const file_directory_info& b)
 	return a.name.compare(b.name) < 0;
 }
 
+void long_print (file_directory_info entry)
+{
+	nstring date_str = date_formatter(entry.wtime);
+	if (entry.attrib & 0x400)
+	{
+		npath e(entry.name);
+		reparse_link rl = NtixFileLib::get_instance()->read_reparse(e.resolve());
+		cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << entry.name << " -> " << rl.entries[0] << endl;
+
+	} else {
+		cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << entry.name << endl;
+	}
+}
+
+
 int main (int argc, char* argv[])
 {
 
@@ -102,29 +118,20 @@ int main (int argc, char* argv[])
 	if (ag.argument_size() == 0)
 	{
 		try {
-		npath path(".");
-		path = path.resolve();
-		// will be a file type
-		vector<file_directory_info> dl = nfl->read_directory(path);
-		std::sort(dl.begin(), dl.end(), sortFileName);
-		for (auto entry: dl)
-		{
-			if (ls.long_format) {
-				// should make this a function
-				nstring date_str = date_formatter(entry.wtime);
-				if (entry.attrib & 0x400)
-				{
-					npath e(entry.name);
-					reparse_link rl = nfl->read_reparse(e.resolve());
-					cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << entry.name << " -> " << rl.entries[0] << endl;
-
+			npath path(".");
+			path = path.resolve();
+			// will be a file type
+			vector<file_directory_info> dl = nfl->read_directory(path);
+			std::sort(dl.begin(), dl.end(), sortFileName);
+			for (auto entry: dl)
+			{
+				if (ls.long_format) {
+					// should make this a function
+					long_print(entry); // oh look a function.
 				} else {
-					cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << entry.name << endl;
+					cout << entry.name << endl;
 				}
-			} else {
-				cout << entry.name << endl;
 			}
-		}
 		} catch (nexception& e) {
 			cerr << "ls: " << e << endl;
 		}
@@ -157,7 +164,7 @@ int main (int argc, char* argv[])
 						else
  							files.push_back(relpath);
 					} else {
-						nstring ft = nfl->get_type(path);
+						nstring ft = nol->get_type(path);
 						if (ft == "Directory" || ft == "Key")
 							dirs.push_back(relpath);
 						else
@@ -175,7 +182,6 @@ int main (int argc, char* argv[])
 			try {
 
 				npath path = relpath.resolve();
-					//cout << path.normalise() << endl;
 
 				nstring pt = path.type();
 
@@ -183,17 +189,7 @@ int main (int argc, char* argv[])
 
 					file_directory_info entry = nfl->get_info(path);
 					if (ls.long_format) {
-						nstring date_str = date_formatter(entry.wtime);
-						if (entry.attrib & 0x400)
-						{
-							npath e(entry.name);
-							reparse_link rl = nfl->read_reparse(e.resolve());
-							cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << entry.name << " -> " << rl.entries[0] << endl;
-
-						} else {
-							cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << entry.name << endl;
-						}
-
+						long_print(entry);
 					} else {
 						cout << relpath << endl;
 					}
@@ -229,6 +225,11 @@ int main (int argc, char* argv[])
 		{
 			try {
 
+				if (!first)
+					cout << endl;
+				first = false;
+				cout << relpath << ":" << endl;
+
 				npath path = relpath.resolve();
 
 				nstring pt = path.type();
@@ -244,17 +245,7 @@ int main (int argc, char* argv[])
 					for (auto entry: dl)
 					{
 						if (ls.long_format) {
-							nstring date_str = date_formatter(entry.wtime);
-							if (entry.attrib & 0x400)
-							{
-								npath e(entry.name);
-								reparse_link rl = nfl->read_reparse(e.resolve());
-								cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << entry.name << " -> " << rl.entries[0] << endl;
-
-							} else {
-								cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << entry.name << endl;
-							}
-
+							long_print(entry);
 						} else {
 							cout << entry.name << endl;
 						}

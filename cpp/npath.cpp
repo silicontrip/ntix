@@ -99,6 +99,8 @@ namespace ntix {
 		} else {
 			std::vector<directory_info> entries = NtixObjectLib::get_instance()->read_directory(dir);
 			for (const directory_info& e : entries) {
+				//std::cerr << "npath::glob_expand DEBUG: entry: " << e.name << std::endl;
+
 				names.push_back(e.name);
 			}
 		}
