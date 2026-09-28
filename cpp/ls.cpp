@@ -295,7 +295,9 @@ int main (int argc, char* argv[])
 
 				if (pt == "File") {
 					file_directory_info entry = nfl->get_info(path);
+					entry.name = relpath.nstr();
 					flist.push_back(entry);
+
 				} else { // only other return is Object
 					nstring ot = nol->get_type(path);
 					olist.push_back({path.nstr(),ot});
