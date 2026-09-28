@@ -87,7 +87,7 @@ int main (int argc, char* argv[])
 
 	if (!ag.parse())
 	{
-		cerr << "usage: ols <nt_path>" << endl;
+		cerr << "usage: ls <nt_path>" << endl;
 		exit(1);
 	}
 
@@ -124,105 +124,155 @@ int main (int argc, char* argv[])
 		// list parent
 		// match
 
+		vector<npath> files;
+		vector<npath> dirs;
+
 		for(nstring arg: ag.get_arguments())
 		{
 			npath apath(arg);
-			for (npath path : apath.glob_expand())
+			for (npath relpath : apath.glob_expand())
 			{
 				try {
-
-					path = path.resolve();
-					cout << path.normalise() << endl;
-
+					npath path = relpath.resolve();
 					nstring pt = path.type();
 
 					if (pt == "File") {
-
 						nstring ft = nfl->get_type(path);
 						if (ft == "Directory")
-						{
-							cout << path.normalise() << endl;
-							vector<file_directory_info> dl = nfl->read_directory(path);
-							std::sort(dl.begin(), dl.end(), sortFileName);
-
-							for (auto entry: dl)
-							{
-								if (ls.long_format) {
-									nstring date_str = date_formatter(entry.wtime);
-									cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << entry.name << endl;
-								} else {
-									cout << entry.name << endl;
-								}
-							}
-						}
-						if (ft == "File")
-						{
-							file_directory_info entry = nfl->get_info(path);
-							if (ls.long_format) {
-								nstring date_str = date_formatter(entry.wtime);
-								cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << entry.name << endl;
-							} else {
-								cout << entry.name << endl;
-							}
-						}
-					} else { // only other return is Object
-
-						nstring ot = nol->get_type(path);
-
-						if (ot == "Directory") {
-							vector<directory_info> dl = nol->read_directory(path);
-							std::sort(dl.begin(), dl.end(), sortObjectName);
-							// cout << "size: " << dl.size() << endl;
-							for (auto entry: dl)
-							{
-								if (entry.type == "SymbolicLink")
-								{
-									try {
-										npath child(entry.name);
-										npath link = nol->get_symbolic_link_path(path.append_path(child));
-										cout << setw(20) << entry.type << " " << entry.name << " -> " << link <<  endl;
-									} catch (nexception& e) {
-										cout << setw(20) << entry.type << " " << entry.name << " -> [" << e.status_str() << "]" <<  endl;
-									}
-								} else {
-									cout << setw(20) << entry.type << " " << entry.name << endl;
-								}
-							}
-						} else if (ot == "SymbolicLink") {
-							// should check if it resolves to a directory...
-							try {
-								npath link = nol->get_symbolic_link_path(path);
-								cout << setw(20) << ot << " " << path << " -> " << link <<  endl;
-							} catch (nexception& e) {
-								cout << setw(20) << ot << " " << path << " -> [" << e.status_str() << "]" <<  endl;
-							}
-						} else {
-							cout << setw(20) << ot << " " << path << endl;
-						}
-
+							dirs.push_back(relpath);
+						else
+ 							files.push_back(relpath);
+					} else {
+						nstring ft = nfl->get_type(path);
+						if (ft == "Directory" || ft == "Key")
+							dirs.push_back(relpath);
+						else
+							files.push_back(relpath);
 					}
 				} catch (nexception& e) {
-					switch (e.status()) {
-						case STATUS_OBJECT_TYPE_MISMATCH:
-							cerr << "ls: " << path << ": not a directory" << endl;
-							break;
-						case STATUS_OBJECT_NAME_INVALID:
-							cerr << "ls: " << path << ": invalid path" << endl;
-							break;
-						case STATUS_OBJECT_NAME_NOT_FOUND:
-							cerr << "ls: " << path << ": no such file or object" << endl;
-							break;
-						case STATUS_OBJECT_PATH_NOT_FOUND:
-							cerr << "ls: " << path << ": path not found" << endl;
-							break;
-						default:
-							//cerr << "ls: " << path << ": " << e.status_str() << " " << hex << "(0x" << e.status() << ")" << endl;
-							cerr << "ls: " << path << ": " << e << endl;
-
-					}
+					;
 				}
 			}
 		}
 
+		bool first = true;
+		for (npath relpath : files)
+		{
+			try {
+
+				npath path = relpath.resolve();
+					//cout << path.normalise() << endl;
+
+				nstring pt = path.type();
+
+				if (pt == "File") {
+
+					file_directory_info entry = nfl->get_info(path);
+					if (ls.long_format) {
+						nstring date_str = date_formatter(entry.wtime);
+						cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << relpath << endl;
+					} else {
+						cout << relpath << endl;
+					}
+				} else { // only other return is Object
+
+					nstring ot = nol->get_type(path);
+
+					cout << setw(20) << ot << " " << path << endl;
+				}
+			} catch (nexception& e) {
+				switch (e.status()) {
+					case STATUS_OBJECT_TYPE_MISMATCH:
+						cerr << "ls: " << relpath << ": not a directory" << endl;
+					break;
+					case STATUS_OBJECT_NAME_INVALID:
+						cerr << "ls: " << relpath << ": invalid path" << endl;
+						break;
+					case STATUS_OBJECT_NAME_NOT_FOUND:
+						cerr << "ls: " << relpath << ": no such file or object" << endl;
+						break;
+					case STATUS_OBJECT_PATH_NOT_FOUND:
+						cerr << "ls: " << relpath << ": path not found" << endl;
+						break;
+					default:
+						//cerr << "ls: " << path << ": " << e.status_str() << " " << hex << "(0x" << e.status() << ")" << endl;
+						cerr << "ls: " << relpath << ": " << e << endl;
+				}
+			}
+			first = false;
+		}
+
+		for (npath relpath : dirs)
+		{
+			try {
+
+				npath path = relpath.resolve();
+
+				nstring pt = path.type();
+				if (pt == "File") {
+
+					if (!first)
+						cout << endl;
+					first = false;
+					cout << relpath  << endl;
+					vector<file_directory_info> dl = nfl->read_directory(path);
+					std::sort(dl.begin(), dl.end(), sortFileName);
+
+					for (auto entry: dl)
+					{
+						if (ls.long_format) {
+							nstring date_str = date_formatter(entry.wtime);
+							cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << entry.name << endl;
+						} else {
+							cout << entry.name << endl;
+						}
+					}
+
+				} else { // only other return is Object
+
+					nstring ot = nol->get_type(path);
+
+					if (ot == "Directory") {
+						vector<directory_info> dl = nol->read_directory(path);
+						std::sort(dl.begin(), dl.end(), sortObjectName);
+						// cout << "size: " << dl.size() << endl;
+						for (auto entry: dl)
+						{
+							if (entry.type == "SymbolicLink")
+							{
+								try {
+									npath child(entry.name);
+									npath link = nol->get_symbolic_link_path(path.append_path(child));
+									cout << setw(20) << entry.type << " " << entry.name << " -> " << link <<  endl;
+								} catch (nexception& e) {
+									cout << setw(20) << entry.type << " " << entry.name << " -> [" << e.status_str() << "]" <<  endl;
+								}
+							} else {
+								cout << setw(20) << entry.type << " " << entry.name << endl;
+							}
+						}
+					} // TODO: Registry
+				}
+			} catch (nexception& e) {
+				switch (e.status()) {
+					case STATUS_OBJECT_TYPE_MISMATCH:
+						cerr << "ls: " << relpath << ": not a directory" << endl;
+						break;
+					case STATUS_OBJECT_NAME_INVALID:
+						cerr << "ls: " << relpath << ": invalid path" << endl;
+						break;
+					case STATUS_OBJECT_NAME_NOT_FOUND:
+						cerr << "ls: " << relpath << ": no such file or object" << endl;
+						break;
+					case STATUS_OBJECT_PATH_NOT_FOUND:
+						cerr << "ls: " << relpath << ": path not found" << endl;
+						break;
+					default:
+						//cerr << "ls: " << path << ": " << e.status_str() << " " << hex << "(0x" << e.status() << ")" << endl;
+						cerr << "ls: " << relpath << ": " << e << endl;
+				}
+			}
+			first = false;
+		}
 	}
 }
