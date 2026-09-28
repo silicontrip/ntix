@@ -62,6 +62,7 @@ NTDLL_CORE_EXPORTS
 		std::wstring utf8_to_wide(const std::string& utf8) const;
 		std::string wide_to_utf8(const std::wstring& wide) const;
 		std::wstring resolve_path(const std::wstring& in) const;
+		int terminal_width() const;
 
 	};
 }

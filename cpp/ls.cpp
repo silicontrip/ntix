@@ -71,19 +71,7 @@ bool sortFileName(const file_directory_info& a, const file_directory_info& b)
 	return a.name.compare(b.name) < 0;
 }
 
-void long_print (file_directory_info entry)
-{
-	nstring date_str = date_formatter(entry.wtime);
-	if (entry.attrib & 0x400)
-	{
-		npath e(entry.name);
-		reparse_link rl = NtixFileLib::get_instance()->read_reparse(e.resolve());
-		cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << entry.name << " -> " << rl.entries[0] << endl;
 
-	} else {
-		cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << entry.name << endl;
-	}
-}
 
 
 class NtixLs {
@@ -99,7 +87,7 @@ class NtixLs {
 
 		nstring format_name (nstring s)
 		{
-			sstream ss;
+			stringstream ss;
 			if (hex_)
 			{
 					ss << "<";
@@ -107,7 +95,7 @@ class NtixLs {
 					for (ULONG i=0; i < w.size(); i++)
 						ss << hex << w[i];
 					ss << ">";
-					return ss.str();
+					return nstring(ss.str());
 			} else if (escape_) {
 				for (ULONG i=0; i < s.size(); i++)
 				{
@@ -118,7 +106,7 @@ class NtixLs {
 						ss << c;
 
 				}
-				return ss.str();
+				return nstring(ss.str());
 			} else {
 				return s;
 			}
@@ -149,30 +137,72 @@ class NtixLs {
 			}
 		}
 
+		void long_print (file_directory_info entry)
+		{
+			nstring date_str = date_formatter(entry.wtime);
+			if (entry.attrib & 0x400)
+			{
+				npath e(entry.name);
+				reparse_link rl = NtixFileLib::get_instance()->read_reparse(e.resolve());
+				cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << format_name(entry.name) << " -> " << rl.entries[0] << endl;
+
+			} else {
+				cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << format_name(entry.name) << endl;
+			}
+		}
+
 		void list_vector_file(vector<file_directory_info> dl)
 		{
-			if (ls.long_format) {
+			if (long_format_) {
 				for (file_directory_info entry: dl)
 					long_print(entry); // oh look a function.
 			} else {
-				print_columns()
+				vector<nstring> ne;
+				for (file_directory_info entry: dl)
+					ne.push_back(entry.name);
+				print_columns(ne);
 			}
 
 		}
 
-		void list_directory_file(npath p)
+		void list_vector_object(vector<directory_info> dl)
 		{
-			path = p.resolve();
-			// will be a file type
-			vector<file_directory_info> dl = nfl->read_directory(path);
-			std::sort(dl.begin(), dl.end(), sortFileName);
-			for (auto entry: dl)
-			{
-				if (ls.long_format) {
-					// should make this a function
-				} else {
-					cout << entry.name << endl;
-				}
+			if (long_format_) {
+				for (directory_info entry: dl)
+					if (entry.type == "SymbolicLink")
+					{
+						try {
+							npath child(entry.name);
+							npath link = NtixObjectLib::get_instance()->get_symbolic_link_path(child);
+							cout << setw(20) << entry.type << " " << entry.name << " -> " << link <<  endl;
+						} catch (nexception& e) {
+							cout << setw(20) << entry.type << " " << entry.name << " -> [" << e.status_str() << "]" <<  endl;
+						}
+					} else {
+						cout << setw(20) << entry.type << " " << entry.name << endl;
+					}
+
+			} else {
+				vector<nstring> ne;
+				for (directory_info entry: dl)
+					ne.push_back(entry.name);
+				print_columns(ne);
+			}
+
+		}
+
+		void list_directory(npath p)
+		{
+			npath path = p.resolve();
+			if (path.type() == "File") {
+				vector<file_directory_info> dl = NtixFileLib::get_instance()->read_directory(path);
+				std::sort(dl.begin(), dl.end(), sortFileName);
+				list_vector_file(dl);
+			} else {
+				vector<directory_info> dl = NtixObjectLib::get_instance()->read_directory(path);
+				std::sort(dl.begin(), dl.end(), sortObjectName);
+				list_vector_object(dl);
+
 			}
 		}
 
@@ -196,8 +226,8 @@ int main (int argc, char* argv[])
 
 	NtixLs ls;
 
-	ls.dont_follow_symlinks = ag.has_option("P");
-	ls.long_format = ag.has_option("l");
+	ls.dont_follow_symlinks_ = ag.has_option("P");
+	ls.long_format_ = ag.has_option("l");
 
 	NtixObjectLib* nol = NtixObjectLib::get_instance();
 	NtixFileLib* nfl = NtixFileLib::get_instance();
@@ -206,8 +236,8 @@ int main (int argc, char* argv[])
 	{
 		try {
 			// list directory short/long
-			npath path(".");
-
+			npath cwd(".");
+			ls.list_directory(cwd);
 		} catch (nexception& e) {
 			cerr << "ls: " << e << endl;
 		}
@@ -253,6 +283,8 @@ int main (int argc, char* argv[])
 		}
 
 		bool first = true;
+		vector<directory_info> olist;
+		vector<file_directory_info> flist;
 		for (npath relpath : files)
 		{
 			try {
@@ -262,18 +294,11 @@ int main (int argc, char* argv[])
 				nstring pt = path.type();
 
 				if (pt == "File") {
-
 					file_directory_info entry = nfl->get_info(path);
-					if (ls.long_format) {
-						long_print(entry);
-					} else {
-						cout << relpath << endl;
-					}
+					flist.push_back(entry);
 				} else { // only other return is Object
-
 					nstring ot = nol->get_type(path);
-
-					cout << setw(20) << ot << " " << path << endl;
+					olist.push_back({path.nstr(),ot});
 				}
 			} catch (nexception& e) {
 				switch (e.status()) {
@@ -297,6 +322,9 @@ int main (int argc, char* argv[])
 			first = false;
 		}
 
+		ls.list_vector_file(flist);
+		ls.list_vector_object(olist);
+
 		for (npath relpath : dirs)
 		{
 			try {
@@ -307,47 +335,8 @@ int main (int argc, char* argv[])
 				cout << relpath << ":" << endl;
 
 				npath path = relpath.resolve();
+				ls.list_directory(path);
 
-				nstring pt = path.type();
-				if (pt == "File") {
-
-					vector<file_directory_info> dl = nfl->read_directory(path);
-					std::sort(dl.begin(), dl.end(), sortFileName);
-
-					for (auto entry: dl)
-					{
-						if (ls.long_format) {
-							long_print(entry);
-						} else {
-							cout << entry.name << endl;
-						}
-					}
-
-				} else { // only other return is Object
-
-					nstring ot = nol->get_type(path);
-
-					if (ot == "Directory") {
-						vector<directory_info> dl = nol->read_directory(path);
-						std::sort(dl.begin(), dl.end(), sortObjectName);
-						// cout << "size: " << dl.size() << endl;
-						for (auto entry: dl)
-						{
-							if (entry.type == "SymbolicLink")
-							{
-								try {
-									npath child(entry.name);
-									npath link = nol->get_symbolic_link_path(path.append_path(child));
-									cout << setw(20) << entry.type << " " << entry.name << " -> " << link <<  endl;
-								} catch (nexception& e) {
-									cout << setw(20) << entry.type << " " << entry.name << " -> [" << e.status_str() << "]" <<  endl;
-								}
-							} else {
-								cout << setw(20) << entry.type << " " << entry.name << endl;
-							}
-						}
-					} // TODO: Registry
-				}
 			} catch (nexception& e) {
 				switch (e.status()) {
 					case STATUS_OBJECT_TYPE_MISMATCH:
