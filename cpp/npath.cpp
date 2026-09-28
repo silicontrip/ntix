@@ -91,6 +91,9 @@ namespace ntix {
 		{
 			std::vector<file_directory_info>  entries = NtixFileLib::get_instance()->read_directory(dir);
 			for (const file_directory_info& e : entries) {
+				// never glob-match . or .. (zsh / bash globskipdots semantics); the OM doesn't list them
+				if (e.name == "." || e.name == "..")
+					continue;
 				names.push_back(e.name);
 			}
 		} else {
