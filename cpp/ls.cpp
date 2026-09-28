@@ -101,6 +101,7 @@ int main (int argc, char* argv[])
 
 	if (ag.argument_size() == 0)
 	{
+		try {
 		npath path(".");
 		path = path.resolve();
 		// will be a file type
@@ -109,11 +110,23 @@ int main (int argc, char* argv[])
 		for (auto entry: dl)
 		{
 			if (ls.long_format) {
+				// should make this a function
 				nstring date_str = date_formatter(entry.wtime);
-				cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << entry.name << endl;
+				if (entry.attrib & 0x400)
+				{
+					npath e(entry.name);
+					reparse_link rl = nfl->read_reparse(e.resolve());
+					cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << entry.name << " -> " << rl.entries[0] << endl;
+
+				} else {
+					cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << entry.name << endl;
+				}
 			} else {
 				cout << entry.name << endl;
 			}
+		}
+		} catch (nexception& e) {
+			cerr << "ls: " << e << endl;
 		}
 
 	} else {
@@ -129,6 +142,7 @@ int main (int argc, char* argv[])
 
 		for(nstring arg: ag.get_arguments())
 		{
+
 			npath apath(arg);
 			for (npath relpath : apath.glob_expand())
 			{
@@ -170,7 +184,16 @@ int main (int argc, char* argv[])
 					file_directory_info entry = nfl->get_info(path);
 					if (ls.long_format) {
 						nstring date_str = date_formatter(entry.wtime);
-						cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << relpath << endl;
+						if (entry.attrib & 0x400)
+						{
+							npath e(entry.name);
+							reparse_link rl = nfl->read_reparse(e.resolve());
+							cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << entry.name << " -> " << rl.entries[0] << endl;
+
+						} else {
+							cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << entry.name << endl;
+						}
+
 					} else {
 						cout << relpath << endl;
 					}
@@ -222,7 +245,16 @@ int main (int argc, char* argv[])
 					{
 						if (ls.long_format) {
 							nstring date_str = date_formatter(entry.wtime);
-							cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << entry.name << endl;
+							if (entry.attrib & 0x400)
+							{
+								npath e(entry.name);
+								reparse_link rl = nfl->read_reparse(e.resolve());
+								cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << entry.name << " -> " << rl.entries[0] << endl;
+
+							} else {
+								cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << entry.name << endl;
+							}
+
 						} else {
 							cout << entry.name << endl;
 						}
