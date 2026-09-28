@@ -196,16 +196,34 @@ class NtixLs {
 
 		void list_directory(npath p)
 		{
+
 			npath path = p.resolve();
 			if (path.type() == "File") {
 				vector<file_directory_info> dl = NtixFileLib::get_instance()->read_directory(path);
 				std::sort(dl.begin(), dl.end(), sortFileName);
 				list_vector_file(path,dl);
+				if (recursive_)
+					for (file_directory_info f : dl)
+						if (f.attrib & 0x10 && !(f.name == ".") && !(f.name == ".."))
+						{
+							npath fp(f.name);
+							npath np = p.append_path(fp);
+							cout << endl << np << ":" << endl;
+							list_directory(np);
+						}
 			} else {
 				vector<directory_info> dl = NtixObjectLib::get_instance()->read_directory(path);
 				std::sort(dl.begin(), dl.end(), sortObjectName);
 				list_vector_object(p,dl);
-
+				if (recursive_)
+					for (directory_info f : dl)
+						if (f.type == "Directory")
+						{
+							npath fp(f.name);
+							npath np = p.append_path(fp);
+							cout << endl << np << ":" << endl;
+							list_directory(p.append_path(npath(f.name)));
+						}
 			}
 		}
 
@@ -220,6 +238,8 @@ int main (int argc, char* argv[])
 
 	ag.add_req("P","",0);
 	ag.add_req("l","",0);
+	ag.add_req("R","",0);
+
 
 	if (!ag.parse())
 	{
@@ -231,6 +251,7 @@ int main (int argc, char* argv[])
 
 	ls.dont_follow_symlinks_ = ag.has_option("P");
 	ls.long_format_ = ag.has_option("l");
+	ls.recursive_ = ag.has_option("R");
 
 	NtixObjectLib* nol = NtixObjectLib::get_instance();
 	NtixFileLib* nfl = NtixFileLib::get_instance();
@@ -259,13 +280,11 @@ int main (int argc, char* argv[])
 		{
 			npath apath(arg);
 			for (npath relpath : apath.glob_expand())
-					entries.push_back(relpath.nstr());
+				entries.push_back(relpath.nstr());
 		}
-
 
 		vector<npath> files;
 		vector<npath> dirs;
-
 
 		for (nstring ent : entries)
 		{
@@ -291,7 +310,6 @@ int main (int argc, char* argv[])
 				;
 			}
 		}
-
 
 		bool first = true;
 		vector<directory_info> olist;
@@ -347,8 +365,7 @@ int main (int argc, char* argv[])
 				if (dirs.size() > 1)
 					cout << relpath << ":" << endl;
 
-				npath path = relpath.resolve();
-				ls.list_directory(path);
+				ls.list_directory(relpath);
 
 			} catch (nexception& e) {
 				switch (e.status()) {
