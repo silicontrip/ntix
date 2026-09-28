@@ -125,6 +125,12 @@ typedef struct mount_point_t
 	nstring symlink;
 } mount_point;
 
+typedef struct reparse_link_t
+{
+	ULONG tag;
+	std::vector<nstring>entries;
+} reparse_link;
+
 	class NtixFileLib {
 	private:
 
@@ -237,6 +243,7 @@ NTDLL_FILE_EXPORTS
 		UINT64 disk_size(HANDLE hDevice) const;
 		std::vector<nstring> mounts() const;
 		void write_reparse(npath p, ULONG ReparseTag, USHORT ReparseDataLength, unsigned char* ReparseData) const;
+		reparse_link read_reparse(npath p) const;
 		void rename(npath sp, npath dp, BOOLEAN replace);
 		const nstring get_type(npath p) const;
 

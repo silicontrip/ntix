@@ -387,6 +387,48 @@ NTDLL_FILE_EXPORTS
 		};
 	}
 
+	reparse_link NtixFileLib::read_reparse(npath p) const
+	{
+		HANDLE hReparse = open(p, FILE_READ_DATA | SYNCHRONIZE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+							   FILE_OPEN, FILE_OPEN_REPARSE_POINT | FILE_SYNCHRONOUS_IO_NONALERT |  FILE_OPEN_FOR_BACKUP_INTENT, 0);
+
+
+		IO_STATUS_BLOCK isb;
+
+
+		REPARSE_DATA_BUFFER* reparseBuffer = (REPARSE_DATA_BUFFER*)malloc(MAXIMUM_REPARSE_DATA_BUFFER_SIZE);
+
+		NTSTATUS status = fscontrol(hReparse, NULL, NULL, NULL, &isb, FSCTL_GET_REPARSE_POINT, NULL, 0, reparseBuffer, MAXIMUM_REPARSE_DATA_BUFFER_SIZE);
+		close(hReparse);
+		if (!NT_SUCCESS(status))
+			throw nexception("NtixFileLib::read_reparse",status);
+
+		//std::cerr << "NtixFileLib::read_reparse teg: " << reparseBuffer->ReparseTag << std::endl;
+
+		std::vector<nstring> e;
+
+		if (reparseBuffer->ReparseTag == IO_REPARSE_TAG_MOUNT_POINT)
+		{
+			nstring sub(reparseBuffer->MountPointReparseBuffer.PathBuffer + (reparseBuffer->MountPointReparseBuffer.SubstituteNameOffset / sizeof(WCHAR)), reparseBuffer->MountPointReparseBuffer.SubstituteNameLength);
+			nstring display(reparseBuffer->MountPointReparseBuffer.PathBuffer + (reparseBuffer->MountPointReparseBuffer.PrintNameOffset / sizeof(WCHAR)), reparseBuffer->MountPointReparseBuffer.PrintNameLength);
+			e.push_back(sub);
+			e.push_back(display);
+		} else if ( reparseBuffer->ReparseTag == IO_REPARSE_TAG_SYMLINK) {
+			nstring sub(reparseBuffer->SymbolicLinkReparseBuffer.PathBuffer + (reparseBuffer->SymbolicLinkReparseBuffer.SubstituteNameOffset / sizeof(WCHAR)), reparseBuffer->SymbolicLinkReparseBuffer.SubstituteNameLength);
+			nstring display(reparseBuffer->SymbolicLinkReparseBuffer.PathBuffer + (reparseBuffer->SymbolicLinkReparseBuffer.PrintNameOffset / sizeof(WCHAR)), reparseBuffer->SymbolicLinkReparseBuffer.PrintNameLength);
+			e.push_back(sub);
+			e.push_back(display);
+		} else {
+			e.push_back("UNKNOWN");
+		}
+
+		free(reparseBuffer);
+		return {
+			reparseBuffer->ReparseTag,
+			e
+		};
+
+	}
 
 
 }
