@@ -130,7 +130,7 @@ class NtixLs {
 					int idx = c * rows + r;
 					if (idx < count) {
 						nstring ps = format_name(entries[idx]);
-						cout << setw(max_len) << ps;
+						cout << left << setw(max_len) << ps;
 					}
 				}
 				cout << endl;
@@ -139,23 +139,26 @@ class NtixLs {
 
 		void long_print (file_directory_info entry)
 		{
-			nstring date_str = date_formatter(entry.wtime);
-			if (entry.attrib & 0x400)
-			{
-				npath e(entry.name);
-				reparse_link rl = NtixFileLib::get_instance()->read_reparse(e.resolve());
-				cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << format_name(entry.name) << " -> " << rl.entries[0] << endl;
 
-			} else {
-				cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << format_name(entry.name) << endl;
-			}
 		}
 
-		void list_vector_file(vector<file_directory_info> dl)
+		void list_vector_file(npath parent, vector<file_directory_info> dl)
 		{
 			if (long_format_) {
 				for (file_directory_info entry: dl)
-					long_print(entry); // oh look a function.
+				{
+					nstring date_str = date_formatter(entry.wtime);
+					if (entry.attrib & 0x400)
+					{
+						npath e(entry.name);
+						reparse_link rl = NtixFileLib::get_instance()->read_reparse(parent.append_path(e));
+						cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << format_name(entry.name) << " -> " << rl.entries[0] << endl;
+
+					} else {
+						cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << format_name(entry.name) << endl;
+					}
+				}
+
 			} else {
 				vector<nstring> ne;
 				for (file_directory_info entry: dl)
@@ -165,7 +168,7 @@ class NtixLs {
 
 		}
 
-		void list_vector_object(vector<directory_info> dl)
+		void list_vector_object(npath parent, vector<directory_info> dl)
 		{
 			if (long_format_) {
 				for (directory_info entry: dl)
@@ -173,7 +176,7 @@ class NtixLs {
 					{
 						try {
 							npath child(entry.name);
-							npath link = NtixObjectLib::get_instance()->get_symbolic_link_path(child);
+							npath link = NtixObjectLib::get_instance()->get_symbolic_link_path(parent.append_path(child));
 							cout << setw(20) << entry.type << " " << entry.name << " -> " << link <<  endl;
 						} catch (nexception& e) {
 							cout << setw(20) << entry.type << " " << entry.name << " -> [" << e.status_str() << "]" <<  endl;
@@ -197,11 +200,11 @@ class NtixLs {
 			if (path.type() == "File") {
 				vector<file_directory_info> dl = NtixFileLib::get_instance()->read_directory(path);
 				std::sort(dl.begin(), dl.end(), sortFileName);
-				list_vector_file(dl);
+				list_vector_file(path,dl);
 			} else {
 				vector<directory_info> dl = NtixObjectLib::get_instance()->read_directory(path);
 				std::sort(dl.begin(), dl.end(), sortObjectName);
-				list_vector_object(dl);
+				list_vector_object(p,dl);
 
 			}
 		}
@@ -250,37 +253,45 @@ int main (int argc, char* argv[])
 		// list parent
 		// match
 
-		vector<npath> files;
-		vector<npath> dirs;
+		vector<nstring> entries;
 
 		for(nstring arg: ag.get_arguments())
 		{
-
 			npath apath(arg);
 			for (npath relpath : apath.glob_expand())
-			{
-				try {
-					npath path = relpath.resolve();
-					nstring pt = path.type();
+					entries.push_back(relpath.nstr());
+		}
 
-					if (pt == "File") {
-						nstring ft = nfl->get_type(path);
-						if (ft == "Directory")
-							dirs.push_back(relpath);
-						else
- 							files.push_back(relpath);
-					} else {
-						nstring ft = nol->get_type(path);
-						if (ft == "Directory" || ft == "Key")
-							dirs.push_back(relpath);
-						else
-							files.push_back(relpath);
-					}
-				} catch (nexception& e) {
-					;
+
+		vector<npath> files;
+		vector<npath> dirs;
+
+
+		for (nstring ent : entries)
+		{
+			npath relpath = npath(ent);
+			try {
+				npath path = relpath.resolve();
+				nstring pt = path.type();
+
+				if (pt == "File") {
+					nstring ft = nfl->get_type(path);
+					if (ft == "Directory")
+						dirs.push_back(relpath);
+					else
+						files.push_back(relpath);
+				} else {
+					nstring ft = nol->get_type(path);
+					if (ft == "Directory" || ft == "Key")
+						dirs.push_back(relpath);
+					else
+						files.push_back(relpath);
 				}
+			} catch (nexception& e) {
+				;
 			}
 		}
+
 
 		bool first = true;
 		vector<directory_info> olist;
@@ -297,7 +308,6 @@ int main (int argc, char* argv[])
 					file_directory_info entry = nfl->get_info(path);
 					entry.name = relpath.nstr();
 					flist.push_back(entry);
-
 				} else { // only other return is Object
 					nstring ot = nol->get_type(path);
 					olist.push_back({path.nstr(),ot});
@@ -324,8 +334,8 @@ int main (int argc, char* argv[])
 			first = false;
 		}
 
-		ls.list_vector_file(flist);
-		ls.list_vector_object(olist);
+		ls.list_vector_file(npath(".").resolve(),flist);
+		ls.list_vector_object(npath(""),olist);
 
 		for (npath relpath : dirs)
 		{
@@ -334,7 +344,8 @@ int main (int argc, char* argv[])
 				if (!first)
 					cout << endl;
 				first = false;
-				cout << relpath << ":" << endl;
+				if (dirs.size() > 1)
+					cout << relpath << ":" << endl;
 
 				npath path = relpath.resolve();
 				ls.list_directory(path);
