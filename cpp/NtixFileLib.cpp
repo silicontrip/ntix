@@ -208,6 +208,7 @@ NTDLL_FILE_EXPORTS
 			FILE_DIRECTORY_INFORMATION *pInfo = (FILE_DIRECTORY_INFORMATION *)buffer;
 			while (pInfo) {
 				nstring name = nstring(pInfo->FileName, pInfo->FileNameLength);
+				//std::cerr << "NtixFileLib::read_directory DEBUG: adding: " << name << std::endl;
 				file_directory_info entry = {
 					name,
 					pInfo->CreationTime.QuadPart,
@@ -363,13 +364,13 @@ NTDLL_FILE_EXPORTS
 
 	file_directory_info NtixFileLib::get_info(npath p) const
 	{
-		HANDLE hFile = open(p,  SYNCHRONIZE | FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-							FILE_OPEN, FILE_OPEN_REPARSE_POINT | FILE_SYNCHRONOUS_IO_NONALERT | FILE_OPEN_FOR_BACKUP_INTENT, 0);
+		HANDLE hFile = open(p, FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+							FILE_OPEN, FILE_OPEN_REPARSE_POINT |  FILE_OPEN_FOR_BACKUP_INTENT, 0);
 
-		FILE_BASIC_INFORMATION fbi;
-		PIO_STATUS_BLOCK isb = {0};
+		FILE_NETWORK_OPEN_INFORMATION fbi;
+		IO_STATUS_BLOCK isb;
 
-		NTSTATUS s = query_information(hFile, isb, &fbi, sizeof(FILE_BASIC_INFORMATION), FileBasicInformation);
+		NTSTATUS s = query_information(hFile, &isb, &fbi, sizeof(FILE_NETWORK_OPEN_INFORMATION), FileNetworkOpenInformation);
 		close(hFile);
 		if (!NT_SUCCESS(s))
 			throw nexception("NtixFileLib::get_info query_information",s);
@@ -380,8 +381,8 @@ NTDLL_FILE_EXPORTS
 			fbi.LastAccessTime.QuadPart,
 			fbi.LastWriteTime.QuadPart,
 			fbi.ChangeTime.QuadPart,
-			0,
-			0,
+			fbi.EndOfFile.QuadPart,
+			fbi.AllocationSize.QuadPart,
 			fbi.FileAttributes
 		};
 	}
