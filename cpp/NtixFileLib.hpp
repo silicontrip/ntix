@@ -239,6 +239,9 @@ NTDLL_FILE_EXPORTS
 
 		void close(HANDLE h) const;
 		bool exists(npath p) const;
+		bool dir_exists(npath p) const;
+		bool is_fs(npath p) const;
+
 
 		UINT64 disk_size(HANDLE hDevice) const;
 		std::vector<nstring> mounts() const;

@@ -8,6 +8,8 @@ namespace ntix {
 		switch (status) {
 			case 0:
 				return "STATUS_SUCCESS";
+			case (NTSTATUS)0x80000005:
+				return "STATUS_BUFFER_OVERFLOW";
 			case (NTSTATUS)0x80000006:
 				return "STATUS_NO_MORE_FILES";
 			case (NTSTATUS)0x8000001A:
@@ -28,6 +30,8 @@ namespace ntix {
 				return "STATUS_INVALID_CID";
 			case (NTSTATUS)0xC000000DL:
 				return "STATUS_INVALID_PARAMETER";
+			case (NTSTATUS)0xC000000EL:
+				return "STATUS_NO_SUCH_DEVICE";
 			case (NTSTATUS)0xC000000F:
 				return "STATUS_NO_SUCH_FILE";
 			case (NTSTATUS)0xC0000010L:
@@ -76,6 +80,8 @@ namespace ntix {
 				return "STATUS_NOT_A_DIRECTORY";
 			case (NTSTATUS)0xC0000121L:
 				return "STATUS_CANNOT_DELETE";
+			case (NTSTATUS)0xC000014FL:
+				return "STATUS_UNRECOGNIZED_VOLUME";
 			case (NTSTATUS)0xC0000225L:
 				return "STATUS_NOT_FOUND";
 			case (NTSTATUS)0xC0000275L:

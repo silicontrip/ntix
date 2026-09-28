@@ -1,4 +1,5 @@
 #include "NtixFileLib.hpp"
+#include "NtixCoreLib.hpp"
 #include "nexception.hpp"
 #include <cstring>
 
@@ -162,12 +163,50 @@ NTDLL_FILE_EXPORTS
 
 	bool NtixFileLib::exists(npath p) const
 	{
+
+
+
 		try {
 			HANDLE hFile = open(p, SYNCHRONIZE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, FILE_OPEN, FILE_SYNCHRONOUS_IO_NONALERT, 0);
 			close(hFile);
 		} catch (nexception& e) {
 			// we may want to throw on some exceptions
-			std::cerr << "DEBUG: NtixFileLib::exists path: " << p << " exception: " << e << std::endl;
+			// std::cerr << "DEBUG: NtixFileLib::exists path: " << p << " exception: " << e << std::endl;
+			return false;
+		}
+		return true;
+	}
+
+	bool NtixFileLib::dir_exists(npath p) const
+	{
+		try {
+			HANDLE hFile = open(p, SYNCHRONIZE | FILE_READ_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, FILE_OPEN, FILE_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_NONALERT, 0);
+			close(hFile);
+		} catch (nexception& e) {
+			// we may want to throw on some exceptions
+			// std::cerr << "DEBUG: NtixFileLib::dir_exists path: " << p << " exception: " << e << std::endl;
+			return false;
+		}
+		return true;
+	}
+
+	bool NtixFileLib::is_fs(npath p) const
+	{
+		try {
+			HANDLE hFs = open(p, SYNCHRONIZE | FILE_READ_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, FILE_OPEN, FILE_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_NONALERT, 0);
+			IO_STATUS_BLOCK isb;
+			FILE_FS_ATTRIBUTE_INFORMATION ffai;
+			NTSTATUS s = query_volume(hFs, &isb, &ffai, sizeof(FILE_FS_ATTRIBUTE_INFORMATION), FileFsAttributeInformation);
+			close (hFs);
+			if (s!=STATUS_BUFFER_OVERFLOW && !NT_SUCCESS(s))
+			{
+				//nexception e("NtixFileLib::is_fs",s);
+				//std::cerr << "DEBUG: NtixFileLib::is_fs query_volume: " << p << " exception: " << e << std::endl;
+				return false;
+			}
+		} catch (nexception& e) {
+			// we may want to throw on some exceptions
+			//std::cerr << "DEBUG: NtixFileLib::is_fs open: " << p << " exception: " << e << std::endl;
 			return false;
 		}
 		return true;

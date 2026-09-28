@@ -150,9 +150,14 @@ class NtixLs {
 					nstring date_str = date_formatter(entry.wtime);
 					if (entry.attrib & 0x400)
 					{
+
 						npath e(entry.name);
-						reparse_link rl = NtixFileLib::get_instance()->read_reparse(parent.append_path(e));
-						cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << format_name(entry.name) << " -> " << rl.entries[0] << endl;
+						try {
+							reparse_link rl = NtixFileLib::get_instance()->read_reparse(parent.append_path(e));
+							cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << format_name(entry.name) << " -> " << rl.entries[0] << endl;
+						} catch (nexception& e) {
+							cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << format_name(entry.name) << " -> [" << e.status_str() << "]" << endl;
+						}
 
 					} else {
 						cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << format_name(entry.name) << endl;
@@ -196,6 +201,7 @@ class NtixLs {
 
 		void list_directory(npath p)
 		{
+			try {
 
 			npath path = p.resolve();
 			if (path.type() == "File") {
@@ -217,6 +223,7 @@ class NtixLs {
 				list_vector_object(p,dl);
 				if (recursive_)
 					for (directory_info f : dl)
+					{
 						if (f.type == "Directory")
 						{
 							npath fp(f.name);
@@ -224,6 +231,41 @@ class NtixLs {
 							cout << endl << np << ":" << endl;
 							list_directory(p.append_path(npath(f.name)));
 						}
+						if (f.type == "Device")
+						{
+							try {
+								npath fp(f.name);
+								npath np = p.append_path(fp);
+								if (NtixFileLib::get_instance()->is_fs(np.with_trailing()))
+								{
+									//cout << "Device exists" << endl;
+									cout << endl << np.with_trailing() << ":" << endl;
+									list_directory(np.with_trailing());
+								}
+							} catch (nexception& e) {
+								;
+							}
+						}
+					}
+			}
+			} catch (nexception& e) {
+				switch (e.status()) {
+					case STATUS_OBJECT_TYPE_MISMATCH:
+						cerr << "ls: " << p << ": not a directory" << endl;
+						break;
+					case STATUS_OBJECT_NAME_INVALID:
+						cerr << "ls: " << p << ": invalid path" << endl;
+						break;
+					case STATUS_OBJECT_NAME_NOT_FOUND:
+						cerr << "ls: " << p << ": no such file or object" << endl;
+						break;
+					case STATUS_OBJECT_PATH_NOT_FOUND:
+						cerr << "ls: " << p << ": path not found" << endl;
+						break;
+					default:
+						//cerr << "ls: " << path << ": " << e.status_str() << " " << hex << "(0x" << e.status() << ")" << endl;
+						cerr << "ls: " << p << ": " << e << endl;
+				}
 			}
 		}
 
@@ -302,7 +344,19 @@ int main (int argc, char* argv[])
 				} else {
 					nstring ft = nol->get_type(path);
 					if (ft == "Directory" || ft == "Key")
+					{
 						dirs.push_back(relpath);
+					}
+					else if (ft == "Device")
+					{
+						try {
+							npath fp(ent + "\\");
+							if (NtixFileLib::get_instance()->is_fs(fp.resolve()))
+								dirs.push_back(relpath.append_path(fp));
+						} catch (nexception& e) {
+							;
+						}
+					}
 					else
 						files.push_back(relpath);
 				}
