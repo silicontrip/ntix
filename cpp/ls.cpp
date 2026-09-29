@@ -138,11 +138,6 @@ class NtixLs {
 			}
 		}
 
-		void long_print (file_directory_info entry)
-		{
-
-		}
-
 		void list_vector_file(npath parent, vector<file_directory_info> dl)
 		{
 			if (long_format_) {
