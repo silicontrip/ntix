@@ -78,6 +78,7 @@ class NtixLs {
 
 	public:
 		bool dont_follow_symlinks_;
+		bool dont_follow_directories_;
 		bool long_format_;
 		bool recursive_;
 		bool classify_;
@@ -210,7 +211,7 @@ class NtixLs {
 				list_vector_file(path,dl);
 				if (recursive_)
 					for (file_directory_info f : dl)
-						if (f.attrib & 0x10 && !(f.name == ".") && !(f.name == ".."))
+						if ((f.attrib & 0x10 && !(f.name == ".") && !(f.name == "..")) && !(dont_follow_symlinks_ && (f.attrib & 0x400)))
 						{
 							npath fp(f.name);
 							npath np = p.append_path(fp);
@@ -281,6 +282,7 @@ int main (int argc, char* argv[])
 	ag.add_req("P","",0);
 	ag.add_req("l","",0);
 	ag.add_req("R","",0);
+	ag.add_req("d","",0);
 
 
 	if (!ag.parse())
@@ -294,6 +296,7 @@ int main (int argc, char* argv[])
 	ls.dont_follow_symlinks_ = ag.has_option("P");
 	ls.long_format_ = ag.has_option("l");
 	ls.recursive_ = ag.has_option("R");
+	ls.dont_follow_directories_ = ag.has_option("d");
 
 	NtixObjectLib* nol = NtixObjectLib::get_instance();
 	NtixFileLib* nfl = NtixFileLib::get_instance();
@@ -337,7 +340,12 @@ int main (int argc, char* argv[])
 
 				if (pt == "File") {
 					nstring ft = nfl->get_type(path);
-					if (ft == "Directory")
+
+					//cerr << "ls: DEBUG: path: " << path << " type: " << ft << endl;
+
+					if (ft == "Directory" && !ls.dont_follow_directories_)
+						dirs.push_back(relpath);
+					else if (ft == "Reparse-Directory" && !ls.dont_follow_symlinks_)
 						dirs.push_back(relpath);
 					else
 						files.push_back(relpath);

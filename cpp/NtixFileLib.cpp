@@ -391,11 +391,14 @@ NTDLL_FILE_EXPORTS
 
 		ULONG type = f.attrib;
 
-		if (type & 0x10)
-			return "Directory";
+		if ((type & 0x410) == 0x410)
+			return "Reparse-Directory";
 
 		if (type & 0x400)
 			return "Reparse";
+
+		if (type & 0x10)
+			return "Directory";
 
 		return "File";
 
