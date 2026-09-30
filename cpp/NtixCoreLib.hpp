@@ -66,8 +66,8 @@ NTDLL_CORE_EXPORTS
 		std::wstring resolve_path(const std::wstring& in) const;
 		int terminal_width() const;
 		ULONG_PTR process_id() const;
-		bool prompt_yes(const nstring& message) const;
-		nstring unique_string();
+		bool prompt_yes(const std::string& message) const;
+		std::string unique_string();
 
 	};
 }

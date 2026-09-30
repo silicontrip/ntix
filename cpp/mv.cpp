@@ -41,7 +41,7 @@ class NtixMv {
 			stringstream ss;
 			ss << "overwrite " << t.nstr() << "? (y/n [n])";
 			// overwrite test2? (y/n [n])
-			if (!NtixCoreLib::get_instance()->prompt_yes(nstring(ss.str())))
+			if (!NtixCoreLib::get_instance()->prompt_yes(ss.str()))
 			{
 				cout << "not overwritten" << endl;
 				return;
@@ -59,7 +59,7 @@ class NtixMv {
 			// rename destination to temp
 
 			for (;;) {
-				nstring post = NtixCoreLib::get_instance()->unique_string();
+				string post = NtixCoreLib::get_instance()->unique_string();
 				stringstream ss;
 				ss << t.nstr() << "." << post;
 				nstring tname(ss.str());

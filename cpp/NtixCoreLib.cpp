@@ -208,7 +208,7 @@ NTDLL_CORE_EXPORTS
 
 	// prompt on stderr like mv -i / rm -i; only a line starting with y or Y is yes,
 	// so an empty line, anything else, or EOF on stdin is the default no
-	bool NtixCoreLib::prompt_yes(const nstring& message) const
+	bool NtixCoreLib::prompt_yes(const std::string& message) const
 	{
 		std::cerr << message << std::flush;
 		std::string line;
@@ -219,11 +219,11 @@ NTDLL_CORE_EXPORTS
 
 	// pid separates processes, ticks separates runs, and the counter separates calls
 	// within one tick (NtQuerySystemTime only advances every ~15.6ms)
-	nstring NtixCoreLib::unique_string()
+	std::string NtixCoreLib::unique_string()
 	{
 		std::ostringstream ss;
 		ss << std::hex << process_id() << "-" << system_time() << "-" << unique_counter_++;
-		return nstring(ss.str());
+		return ss.str();
 	}
 
 }
