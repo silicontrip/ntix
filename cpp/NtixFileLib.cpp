@@ -219,11 +219,7 @@ NTDLL_FILE_EXPORTS
 		HANDLE hDir = open(p, FILE_LIST_DIRECTORY | SYNCHRONIZE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, FILE_OPEN,
 			FILE_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_NONALERT | FILE_OPEN_FOR_BACKUP_INTENT);
 
-		PBYTE buffer = (PBYTE)malloc(65536);
-		if (!buffer) {
-			close(hDir);
-			throw nexception("NtixFileLib::read_directory malloc",STATUS_NO_MEMORY);
-		}
+		std::vector<BYTE> buffer(65536);
 
 		BOOLEAN restart = TRUE;
 		ULONG retLen = 0;
@@ -235,19 +231,18 @@ NTDLL_FILE_EXPORTS
 			// possible look into;
 			// FileIdBothDirectoryInformation / FileIdExtdDirectoryInformation
 
-			NTSTATUS status = query_directory(hDir, buffer, 65536, FileDirectoryInformation, restart, &retLen);
+			NTSTATUS status = query_directory(hDir, buffer.data(), (ULONG)buffer.size(), FileDirectoryInformation, restart, &retLen);
 			restart = FALSE;
 
 			if (status == STATUS_NO_MORE_FILES) break;
 
 			if (!NT_SUCCESS(status))
 			{
-				free(buffer);
 				close(hDir);
 				throw nexception("NtixFileLib::read_directory::query_directory",status);
 			}
 
-			FILE_DIRECTORY_INFORMATION *pInfo = (FILE_DIRECTORY_INFORMATION *)buffer;
+			FILE_DIRECTORY_INFORMATION *pInfo = (FILE_DIRECTORY_INFORMATION *)buffer.data();
 			while (pInfo) {
 				nstring name = nstring(pInfo->FileName, pInfo->FileNameLength);
 				//std::cerr << "NtixFileLib::read_directory DEBUG: adding: " << name << std::endl;
@@ -266,7 +261,6 @@ NTDLL_FILE_EXPORTS
                 pInfo = (FILE_DIRECTORY_INFORMATION *)((PBYTE)pInfo + pInfo->NextEntryOffset);
 			}
 		}
-		free(buffer);
 		close(hDir);
 		return list;
 	}
@@ -294,16 +288,16 @@ NTDLL_FILE_EXPORTS
 
 		MOUNTMGR_MOUNT_POINT inputParam = { 0 };
 
-		MOUNTMGR_MOUNT_POINTS*  mp = (MOUNTMGR_MOUNT_POINTS*) malloc(4096);
+		std::vector<BYTE> buffer(4096);
+		MOUNTMGR_MOUNT_POINTS* mp = (MOUNTMGR_MOUNT_POINTS*)buffer.data();
 
 		IO_STATUS_BLOCK isb;
 
 		NTSTATUS status = device_ioctl(hMpm, NULL, NULL, NULL, &isb, IOCTL_MOUNTMGR_QUERY_POINTS,
-			&inputParam, sizeof(inputParam), mp, 4096);
+			&inputParam, sizeof(inputParam), mp, (ULONG)buffer.size());
 
 		if (!NT_SUCCESS(status))
 		{
-			free(mp);
 			close(hMpm);
 			throw nexception("NtixFileLib::mounts device_ioctl", status);
 		}
@@ -317,15 +311,13 @@ NTDLL_FILE_EXPORTS
 			mlist.push_back(symbolicLink);
 		}
 
-		free(mp);
 		return mlist;
 	}
 
 	void NtixFileLib::write_reparse(npath p, ULONG ReparseTag, USHORT ReparseDataLength, unsigned char* ReparseData) const
 	{
-		REPARSE_DATA_BUFFER* rdb = (REPARSE_DATA_BUFFER*)malloc(sizeof(ULONG) + sizeof(USHORT) + sizeof(USHORT) + ReparseDataLength);
-		if (!rdb)
-			throw nexception("NtixFileLib::write_reparse",STATUS_NO_MEMORY);
+		std::vector<BYTE> buffer(sizeof(ULONG) + sizeof(USHORT) + sizeof(USHORT) + ReparseDataLength);
+		REPARSE_DATA_BUFFER* rdb = (REPARSE_DATA_BUFFER*)buffer.data();
 
 		rdb->ReparseTag = ReparseTag;
 		rdb->ReparseDataLength = ReparseDataLength;
@@ -333,23 +325,13 @@ NTDLL_FILE_EXPORTS
 
 		memcpy(rdb->GenericReparseBuffer.DataBuffer,ReparseData,ReparseDataLength);
 
-		NTSTATUS status;
-		try {
-			HANDLE hDir = open(p, FILE_WRITE_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-									FILE_OPEN, FILE_OPEN_REPARSE_POINT | FILE_OPEN_FOR_BACKUP_INTENT,0);
+		HANDLE hDir = open(p, FILE_WRITE_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+								FILE_OPEN, FILE_OPEN_REPARSE_POINT | FILE_OPEN_FOR_BACKUP_INTENT,0);
 
+		IO_STATUS_BLOCK isb;
 
-			IO_STATUS_BLOCK isb;
-
-			status = fscontrol(hDir, NULL, NULL, NULL, &isb, FSCTL_SET_REPARSE_POINT, rdb, rdb->ReparseDataLength + 8, NULL, 0);
-			close(hDir);
-
-		} catch (nexception& e) {
-			free(rdb);
-			throw e;
-		}
-
-		free(rdb);
+		NTSTATUS status = fscontrol(hDir, NULL, NULL, NULL, &isb, FSCTL_SET_REPARSE_POINT, rdb, (ULONG)buffer.size(), NULL, 0);
+		close(hDir);
 
 		if (!NT_SUCCESS(status))
 			throw nexception("NtixFileLib::write_reparse fscontrol",status);
@@ -365,11 +347,10 @@ NTDLL_FILE_EXPORTS
 		HANDLE hFile = open(sp, DELETE | SYNCHRONIZE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
 			FILE_OPEN, FILE_OPEN_REPARSE_POINT | FILE_SYNCHRONOUS_IO_NONALERT | FILE_OPEN_FOR_BACKUP_INTENT, 0);
 
-		FILE_RENAME_INFORMATION* fri;
-
 		size_t wSize = sp.length()*sizeof(WCHAR);
 		ULONG friSize = sizeof(FILE_RENAME_INFORMATION) + wSize;
-		fri = (FILE_RENAME_INFORMATION *)malloc(friSize);
+		std::vector<BYTE> buffer(friSize);
+		FILE_RENAME_INFORMATION* fri = (FILE_RENAME_INFORMATION *)buffer.data();
 
 		fri->ReplaceIfExists = replace;
 		fri->RootDirectory = NULL;
@@ -381,10 +362,42 @@ NTDLL_FILE_EXPORTS
 		IO_STATUS_BLOCK isb;
 		NTSTATUS status = set_information(hFile, &isb, &fri, friSize, FileRenameInformation);
 
-		free(fri);
 		close(hFile);
 		if (!NT_SUCCESS(status))
 			throw nexception("NtixFileLib::rename set_information",status);
+	}
+
+	// NT has no per-file handle count: ObjectBasicInformation.HandleCount is per FILE_OBJECT,
+	// and every NtCreateFile makes a new one, so it's always 1 on our own handle.
+	// FileProcessIdsUsingFileInformation asks the file system which processes have it open.
+	std::vector<ULONG_PTR> NtixFileLib::processes_using(npath p) const
+	{
+		HANDLE hFile = open(p, FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+							FILE_OPEN, FILE_OPEN_REPARSE_POINT | FILE_OPEN_FOR_BACKUP_INTENT, 0);
+
+		std::vector<BYTE> buffer(sizeof(FILE_PROCESS_IDS_USING_FILE_INFORMATION) + 63 * sizeof(ULONG_PTR));
+		IO_STATUS_BLOCK isb;
+		NTSTATUS status;
+		for (;;)
+		{
+			status = query_information(hFile, &isb, buffer.data(), (ULONG)buffer.size(), FileProcessIdsUsingFileInformation);
+			if (status != STATUS_INFO_LENGTH_MISMATCH && status != STATUS_BUFFER_OVERFLOW && status != STATUS_BUFFER_TOO_SMALL)
+				break;
+			buffer.resize(buffer.size() * 2);
+		}
+		close(hFile);
+		if (!NT_SUCCESS(status))
+			throw nexception("NtixFileLib::processes_using query_information", status);
+
+		// TEB->ClientId.UniqueProcess; our own query handle may be in the list
+		ULONG_PTR self = (ULONG_PTR)__readgsqword(0x40);
+
+		FILE_PROCESS_IDS_USING_FILE_INFORMATION* info = (FILE_PROCESS_IDS_USING_FILE_INFORMATION*)buffer.data();
+		std::vector<ULONG_PTR> pids;
+		for (ULONG i = 0; i < info->NumberOfProcessIdsInList; i++)
+			if (info->ProcessIdList[i] != self)
+				pids.push_back(info->ProcessIdList[i]);
+		return pids;
 	}
 
 	const nstring NtixFileLib::get_type(npath p) const
@@ -441,9 +454,10 @@ NTDLL_FILE_EXPORTS
 		IO_STATUS_BLOCK isb;
 
 
-		REPARSE_DATA_BUFFER* reparseBuffer = (REPARSE_DATA_BUFFER*)malloc(MAXIMUM_REPARSE_DATA_BUFFER_SIZE);
+		std::vector<BYTE> buffer(MAXIMUM_REPARSE_DATA_BUFFER_SIZE);
+		REPARSE_DATA_BUFFER* reparseBuffer = (REPARSE_DATA_BUFFER*)buffer.data();
 
-		NTSTATUS status = fscontrol(hReparse, NULL, NULL, NULL, &isb, FSCTL_GET_REPARSE_POINT, NULL, 0, reparseBuffer, MAXIMUM_REPARSE_DATA_BUFFER_SIZE);
+		NTSTATUS status = fscontrol(hReparse, NULL, NULL, NULL, &isb, FSCTL_GET_REPARSE_POINT, NULL, 0, reparseBuffer, (ULONG)buffer.size());
 		close(hReparse);
 		if (!NT_SUCCESS(status))
 			throw nexception("NtixFileLib::read_reparse",status);
@@ -467,7 +481,6 @@ NTDLL_FILE_EXPORTS
 			e.push_back("UNKNOWN");
 		}
 
-		free(reparseBuffer);
 		return {
 			reparseBuffer->ReparseTag,
 			e

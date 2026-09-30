@@ -2,6 +2,7 @@
 #define NTIX_FILE_HPP
 
 #include <string>
+#include <vector>
 
 #include "NtixCoreLib.hpp"
 #include "NtixLoader.hpp"
@@ -79,6 +80,14 @@ typedef struct _REPARSE_DATA_BUFFER {
 		} GenericReparseBuffer;
 	};
 } REPARSE_DATA_BUFFER;
+
+// winternl.h's FILE_INFORMATION_CLASS skips 47; the struct is only in ddk/wdm.h
+const ULONG FileProcessIdsUsingFileInformation = 47;
+
+typedef struct _FILE_PROCESS_IDS_USING_FILE_INFORMATION {
+	ULONG NumberOfProcessIdsInList;
+	ULONG_PTR ProcessIdList[1];
+} FILE_PROCESS_IDS_USING_FILE_INFORMATION;
 
 typedef struct _MOUNTMGR_MOUNT_POINTS {
   ULONG                Size;
@@ -248,6 +257,8 @@ NTDLL_FILE_EXPORTS
 		void write_reparse(npath p, ULONG ReparseTag, USHORT ReparseDataLength, unsigned char* ReparseData) const;
 		reparse_link read_reparse(npath p) const;
 		void rename(npath sp, npath dp, BOOLEAN replace);
+		// PIDs of other processes holding a handle open on p (not a handle count -- see .cpp)
+		std::vector<ULONG_PTR> processes_using(npath p) const;
 		const nstring get_type(npath p) const;
 
 
