@@ -83,6 +83,8 @@ typedef struct _REPARSE_DATA_BUFFER {
 
 // winternl.h's FILE_INFORMATION_CLASS skips 47; the struct is only in ddk/wdm.h
 const ULONG FileProcessIdsUsingFileInformation = 47;
+// FILE_DISPOSITION_INFO_EX and its flags come from winbase.h; only the class is missing
+const ULONG FileDispositionInformationEx = 64;
 
 typedef struct _FILE_PROCESS_IDS_USING_FILE_INFORMATION {
 	ULONG NumberOfProcessIdsInList;
@@ -260,6 +262,9 @@ NTDLL_FILE_EXPORTS
 		// PIDs of other processes holding a handle open on p (not a handle count -- see .cpp)
 		std::vector<ULONG_PTR> processes_using(npath p) const;
 		const nstring get_type(npath p) const;
+		void set_info(npath p, file_directory_info f) const;
+		void delete_file(npath p, bool ignore_readonly = false) const;
+
 
 
 	};

@@ -449,6 +449,67 @@ NTDLL_FILE_EXPORTS
 		};
 	}
 
+	void NtixFileLib::set_info(npath p, file_directory_info f) const
+	{
+		HANDLE hFile = open(p, FILE_WRITE_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+							FILE_OPEN, FILE_OPEN_REPARSE_POINT |  FILE_OPEN_FOR_BACKUP_INTENT, 0);
+
+		// FileNetworkOpenInformation is query-only; FileBasicInformation is the settable
+		// subset (times + attributes). size/asize are ignored -- those are
+		// FileEndOfFileInformation / FileAllocationInformation and need FILE_WRITE_DATA.
+		// A time of 0 means "leave unchanged", so get_info -> tweak -> set_info round-trips.
+		FILE_BASIC_INFORMATION fbi;
+		IO_STATUS_BLOCK isb;
+
+		fbi.CreationTime.QuadPart = f.ctime;
+		fbi.LastAccessTime.QuadPart = f.atime;
+		fbi.LastWriteTime.QuadPart = f.wtime;   // get_info stores LastWriteTime in wtime
+		fbi.ChangeTime.QuadPart = f.mtime;      // and ChangeTime in mtime
+
+		// only these bits are settable (FILE_ATTRIBUTE_VALID_SET_FLAGS); passing the
+		// directory/reparse/compressed bits back can fail with STATUS_INVALID_PARAMETER
+		ULONG attrib = f.attrib & 0x31a7;
+		// 0 means "leave unchanged", so clearing the last attribute (e.g. read-only)
+		// has to be sent as FILE_ATTRIBUTE_NORMAL
+		fbi.FileAttributes = attrib ? attrib : FILE_ATTRIBUTE_NORMAL;
+
+		NTSTATUS s = set_information(hFile, &isb, &fbi, sizeof(FILE_BASIC_INFORMATION), FileBasicInformation);
+		close(hFile);
+		if (!NT_SUCCESS(s))
+			throw nexception("NtixFileLib::set_info set_information",s);
+	}
+
+	// POSIX semantics unlink the name immediately, even while other processes hold it
+	// open (with FILE_SHARE_DELETE); the data goes when the last handle closes.
+	// Falls back to classic delete-on-last-close where the Ex class isn't supported
+	// (pre-1709 Windows, FAT, many network redirectors).
+	void NtixFileLib::delete_file(npath p, bool ignore_readonly) const
+	{
+		// FILE_OPEN_REPARSE_POINT: delete the link itself, never its target
+		HANDLE hFile = open(p, DELETE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+							FILE_OPEN, FILE_OPEN_REPARSE_POINT | FILE_OPEN_FOR_BACKUP_INTENT, 0);
+
+		IO_STATUS_BLOCK isb;
+		FILE_DISPOSITION_INFO_EX fdie;
+		fdie.Flags = FILE_DISPOSITION_FLAG_DELETE | FILE_DISPOSITION_FLAG_POSIX_SEMANTICS;
+		if (ignore_readonly)
+			fdie.Flags |= FILE_DISPOSITION_FLAG_IGNORE_READONLY_ATTRIBUTE;
+
+		NTSTATUS s = set_information(hFile, &isb, &fdie, sizeof(fdie), FileDispositionInformationEx);
+
+		if (s == STATUS_INVALID_INFO_CLASS || s == STATUS_INVALID_PARAMETER || s == STATUS_NOT_SUPPORTED)
+		{
+			// no ignore-readonly here: a read-only file fails with STATUS_CANNOT_DELETE,
+			// the caller clears the attribute with set_info and retries
+			FILE_DISPOSITION_INFORMATION fdi;
+			fdi.DoDeleteFile = TRUE;
+			s = set_information(hFile, &isb, &fdi, sizeof(fdi), FileDispositionInformation);
+		}
+		close(hFile);
+		if (!NT_SUCCESS(s))
+			throw nexception("NtixFileLib::delete_file set_information", s);
+	}
+
 	reparse_link NtixFileLib::read_reparse(npath p) const
 	{
 		HANDLE hReparse = open(p, FILE_READ_DATA | SYNCHRONIZE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
