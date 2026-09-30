@@ -296,11 +296,11 @@ NTDLL_FILE_EXPORTS
 		NTSTATUS status = device_ioctl(hMpm, NULL, NULL, NULL, &isb, IOCTL_MOUNTMGR_QUERY_POINTS,
 			&inputParam, sizeof(inputParam), mp, (ULONG)buffer.size());
 
+		close(hMpm);
+
 		if (!NT_SUCCESS(status))
-		{
-			close(hMpm);
 			throw nexception("NtixFileLib::mounts device_ioctl", status);
-		}
+
 
 		std::vector<nstring> mlist;
 		for (ULONG i=0; i<mp->NumberOfMountPoints; i++)
@@ -347,17 +347,17 @@ NTDLL_FILE_EXPORTS
 		HANDLE hFile = open(sp, DELETE | SYNCHRONIZE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
 			FILE_OPEN, FILE_OPEN_REPARSE_POINT | FILE_SYNCHRONOUS_IO_NONALERT | FILE_OPEN_FOR_BACKUP_INTENT, 0);
 
-		size_t wSize = sp.length()*sizeof(WCHAR);
+		size_t wSize = dp.length()*sizeof(WCHAR);
 		ULONG friSize = sizeof(FILE_RENAME_INFORMATION) + wSize;
 		std::vector<BYTE> buffer(friSize);
 		FILE_RENAME_INFORMATION* fri = (FILE_RENAME_INFORMATION *)buffer.data();
 
 		fri->ReplaceIfExists = replace;
 		fri->RootDirectory = NULL;
-		fri->FileNameLength = sp.length()*sizeof(WCHAR);
+		fri->FileNameLength = dp.length()*sizeof(WCHAR);
 		//fri.FileName = &sp.nstr().wc_str();
 
-		memcpy(fri->FileName, &sp.nstr().wc_str() , wSize );
+		memcpy(fri->FileName, &dp.nstr().wc_str() , wSize );
 
 		IO_STATUS_BLOCK isb;
 		NTSTATUS status = set_information(hFile, &isb, &fri, friSize, FileRenameInformation);
@@ -389,8 +389,8 @@ NTDLL_FILE_EXPORTS
 		if (!NT_SUCCESS(status))
 			throw nexception("NtixFileLib::processes_using query_information", status);
 
-		// TEB->ClientId.UniqueProcess; our own query handle may be in the list
-		ULONG_PTR self = (ULONG_PTR)__readgsqword(0x40);
+		// our own query handle may be in the list
+		ULONG_PTR self = NtixCoreLib::get_instance()->process_id();
 
 		FILE_PROCESS_IDS_USING_FILE_INFORMATION* info = (FILE_PROCESS_IDS_USING_FILE_INFORMATION*)buffer.data();
 		std::vector<ULONG_PTR> pids;
