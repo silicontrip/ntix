@@ -40,9 +40,10 @@ class NtixRm {
 				npath e(fdi.name);
 				if (fdi.attrib & 0x400)
 					delete_entry(t.append_path(e));
-				if (fdi.attrib & 0x10)
+				else if (fdi.attrib & 0x10)
 					delete_recursive(t.append_path(e));
-				delete_entry(t.append_path(e));
+				else
+					delete_entry(t.append_path(e));
 			}
 		}
 		delete_entry(t);
@@ -89,6 +90,8 @@ class NtixRm {
 						throw e;
 				}
 			}
+		} else {
+
 		}
 	}
 
