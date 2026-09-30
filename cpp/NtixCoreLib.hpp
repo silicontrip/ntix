@@ -44,6 +44,8 @@ NTDLL_CORE_EXPORTS
 
 		static NtixCoreLib* ptr;
 
+		ULONG unique_counter_ = 0;
+
 		NTSTATUS query_system_time(PLARGE_INTEGER sysTime) const;
 		NTSTATUS multibyte_to_unicode(WCHAR* ustr, ULONG max, PULONG bytes, const char* utf8, ULONG len) const;
 		NTSTATUS unicode_to_multibyte(char* utf8, ULONG max, PULONG bytes, const WCHAR* ustr, ULONG len) const;
@@ -63,6 +65,9 @@ NTDLL_CORE_EXPORTS
 		std::string wide_to_utf8(const std::wstring& wide) const;
 		std::wstring resolve_path(const std::wstring& in) const;
 		int terminal_width() const;
+		ULONG_PTR process_id() const;
+		bool prompt_yes(const nstring& message) const;
+		nstring unique_string();
 
 	};
 }

@@ -1,5 +1,8 @@
 #include "NtixCoreLib.hpp"
 
+#include <iostream>
+#include <sstream>
+
 namespace ntix {
 	NtixCoreLib* NtixCoreLib::ptr = 0;
 
@@ -195,6 +198,32 @@ NTDLL_CORE_EXPORTS
 			return csbi.srWindow.Right - csbi.srWindow.Left + 1;
 		}
 		return 80; // Default fallback
+	}
+
+	// TEB->ClientId.UniqueProcess
+	ULONG_PTR NtixCoreLib::process_id() const
+	{
+		return (ULONG_PTR)__readgsqword(0x40);
+	}
+
+	// prompt on stderr like mv -i / rm -i; only a line starting with y or Y is yes,
+	// so an empty line, anything else, or EOF on stdin is the default no
+	bool NtixCoreLib::prompt_yes(const nstring& message) const
+	{
+		std::cerr << message << std::flush;
+		std::string line;
+		if (!std::getline(std::cin, line))
+			return false;
+		return !line.empty() && (line[0] == 'y' || line[0] == 'Y');
+	}
+
+	// pid separates processes, ticks separates runs, and the counter separates calls
+	// within one tick (NtQuerySystemTime only advances every ~15.6ms)
+	nstring NtixCoreLib::unique_string()
+	{
+		std::ostringstream ss;
+		ss << std::hex << process_id() << "-" << system_time() << "-" << unique_counter_++;
+		return nstring(ss.str());
 	}
 
 }
