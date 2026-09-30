@@ -232,6 +232,9 @@ NTDLL_FILE_EXPORTS
 		for (;;)
 		{
 
+			// possible look into;
+			// FileIdBothDirectoryInformation / FileIdExtdDirectoryInformation
+
 			NTSTATUS status = query_directory(hDir, buffer, 65536, FileDirectoryInformation, restart, &retLen);
 			restart = FALSE;
 
