@@ -17,7 +17,8 @@ TEST = bin/test_cpp.exe bin/path_test.exe
 
 TOOLS = \
 	bin/mount.exe \
-	bin/ls.exe 
+	bin/ls.exe \
+	bin/mv.exe
 
 all: setup $(TOOLS)
 
@@ -43,6 +44,9 @@ bin/ls.exe: cpp/ls.cpp $(CPP_CORE_OBJS)
 	$(CXX) $(CFLAGS) $(CXXFLAGS) $^ -o $@ $(CXX_LDFLAGS) $(LIBS)
 
 bin/mount.exe: cpp/mount.cpp $(CPP_CORE_OBJS)
+	$(CXX) $(CFLAGS) $(CXXFLAGS) $^ -o $@ $(CXX_LDFLAGS) $(LIBS)
+
+bin/mv.exe: cpp/mv.cpp $(CPP_CORE_OBJS)
 	$(CXX) $(CFLAGS) $(CXXFLAGS) $^ -o $@ $(CXX_LDFLAGS) $(LIBS)
 
 

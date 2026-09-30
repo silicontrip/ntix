@@ -25,32 +25,87 @@ class NtixMv {
 	{
 		npath dest = t.append_path(s.basename());
 
-		NtixFileLib::get_instance()->rename(s,dest,false);
+		NtixFileLib::get_instance()->rename(s.resolve(),dest.resolve(),false);
 	}
 
 	void rename_overwrite(npath s, npath t)
 	{
+		NtixFileLib* nfl = NtixFileLib::get_instance();
+
+		//interactive test.
+		if (interactive)
+		{
+			// prompt
+			stringstream ss;
+			ss << "overwrite " << t.nstr() << "? (y/n [n])";
+			// overwrite test2? (y/n [n])
+			if (!NtixCoreLib::get_instance()->prompt_yes(nstring(ss.str())))
+			{
+				cout << "not overwritten" << endl;
+				return;
+			}
+		}
+		if (nooverwrite)
+			throw nexception("no overwrite",0xC0000035); // STATUS_OBJECT_NAME_COLLISION
+
 		// check delete status on target
+		vector<ULONG_PTR>c = nfl->processes_using(t.resolve());
+		if (c.size() > 1)
+		{
+			// another process is holding this destination
+			// generate temp filename
+			// rename destination to temp
 
-
+			for (;;) {
+				nstring post = NtixCoreLib::get_instance()->unique_string();
+				stringstream ss;
+				ss << t.nstr() << "." << post;
+				nstring tname(ss.str());
+				npath tpath(tname);
+				try {
+					NtixFileLib::get_instance()->rename(t.resolve(),tpath.resolve(),false);
+					break;
+				} catch (nexception& e) {
+					if (e.status() != 0xC0000035)
+						throw e;
+				}
+			}
+			// rename source to destination
+			NtixFileLib::get_instance()->rename(s.resolve(),t.resolve(),false);
+		} else {
+			NtixFileLib::get_instance()->rename(s.resolve(),t.resolve(),true);
+		}
 	}
 
 	void rename(npath s, npath t)
 	{
-		NtixFileLib nfl = NtixFileLib::get_instance();
-		npath t = t.resolve();
-		npath s = s.resolve();
+		NtixFileLib* nfl = NtixFileLib::get_instance();
+		//npath t = t.resolve();
+		//npath s = s.resolve();
 
 		if (nfl->exists(t))
 		{
-			nstring type = nfl->get_type(t);
+			nstring type = nfl->get_type(t.resolve());
 			if (type=="Directory" || type == "Reparse-Directory")
 				rename_todir(s,t);
-
-			rename_overwrite(s,t);
+			else
+				rename_overwrite(s,t);
+		} else {
+			NtixFileLib::get_instance()->rename(s.resolve(),t.resolve(),false);
 		}
+	}
 
-		rename_new(s,t);
+	void rename_multi(vector<nstring> s, npath t)
+	{
+		for (nstring ss : s)
+		{
+			npath sp(ss);
+			try {
+				rename_todir(sp, t);
+			} catch (nexception& e) {
+				cerr << "mv: " << e << endl;
+			}
+		}
 	}
 };
 
@@ -80,7 +135,7 @@ int main (int argc, char* argv[])
 	ntixmv.verbose = ag.has_option("v");
 	ntixmv.nofollow = ag.has_option("h");
 
-	NtixObjectLib* nol = NtixObjectLib::get_instance(); // although we probably can't do anything in the object space
+	// NtixObjectLib* nol = NtixObjectLib::get_instance(); // although we probably can't do anything in the object space
 	NtixFileLib* nfl = NtixFileLib::get_instance();
 
 	vector<nstring> entries;
@@ -116,7 +171,7 @@ int main (int argc, char* argv[])
 	try {
 		if (entries.size() > 2)
 		{
-			if (!nfl->exists())
+			if (!nfl->exists(target))
 			{
 				cerr << "mv: " << target << " is not a directory" << endl;
 				exit(1);
