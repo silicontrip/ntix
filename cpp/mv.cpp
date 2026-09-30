@@ -26,6 +26,8 @@ class NtixMv {
 		npath dest = t.append_path(s.basename());
 
 		NtixFileLib::get_instance()->rename(s.resolve(),dest.resolve(),false);
+		if (verbose)
+			cout << s << " -> " << dest << endl;
 	}
 
 	void rename_overwrite(npath s, npath t)
@@ -63,7 +65,7 @@ class NtixMv {
 				nstring tname(ss.str());
 				npath tpath(tname);
 				try {
-					NtixFileLib::get_instance()->rename(t.resolve(),tpath.resolve(),false);
+					NtixFileLib::get_instance()->rename(t.resolve(),tpath.resolve(),false);  // should I verbose report on this?
 					break;
 				} catch (nexception& e) {
 					if (e.status() != 0xC0000035)
@@ -75,6 +77,8 @@ class NtixMv {
 		} else {
 			NtixFileLib::get_instance()->rename(s.resolve(),t.resolve(),true);
 		}
+		if (verbose)
+			cout << s << " -> " << t << endl;
 	}
 
 	void rename(npath s, npath t)
@@ -83,7 +87,7 @@ class NtixMv {
 		//npath t = t.resolve();
 		//npath s = s.resolve();
 
-		if (nfl->exists(t))
+		if (nfl->exists(t.resolve()))
 		{
 			nstring type = nfl->get_type(t.resolve());
 			if (type=="Directory" || type == "Reparse-Directory")
@@ -92,6 +96,8 @@ class NtixMv {
 				rename_overwrite(s,t);
 		} else {
 			NtixFileLib::get_instance()->rename(s.resolve(),t.resolve(),false);
+			if (verbose)
+				cout << s << " -> " << t << endl;
 		}
 	}
 
@@ -116,7 +122,9 @@ int main (int argc, char* argv[])
 
 	ag.add_req("v","",0);
 	ag.add_req("h","",0);
-
+	ag.add_req("i","",0);
+	ag.add_req("n","",0);
+	ag.add_req("f","",0); // replaces previous n or i but our argument parser is not order dependent.
 
 	if (!ag.parse())
 	{
@@ -134,6 +142,9 @@ int main (int argc, char* argv[])
 
 	ntixmv.verbose = ag.has_option("v");
 	ntixmv.nofollow = ag.has_option("h");
+	ntixmv.interactive = ag.has_option("i");
+	ntixmv.nooverwrite = ag.has_option("n");
+	ntixmv.force = ag.has_option("f");
 
 	// NtixObjectLib* nol = NtixObjectLib::get_instance(); // although we probably can't do anything in the object space
 	NtixFileLib* nfl = NtixFileLib::get_instance();
@@ -184,7 +195,7 @@ int main (int argc, char* argv[])
 			}
 		}
 
-		if (entries.size() == 2)
+		if (entries.size() == 1)
 		{
 			npath origin(entries[0]);
 			ntixmv.rename(origin,target);
