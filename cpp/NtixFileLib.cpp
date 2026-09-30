@@ -347,24 +347,28 @@ NTDLL_FILE_EXPORTS
 		HANDLE hFile = open(sp, DELETE | SYNCHRONIZE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
 			FILE_OPEN, FILE_OPEN_REPARSE_POINT | FILE_SYNCHRONOUS_IO_NONALERT | FILE_OPEN_FOR_BACKUP_INTENT, 0);
 
-		size_t wSize = dp.length()*sizeof(WCHAR);
+		// dp.length() is UTF-8 bytes; the size must come from the wide string
+		const std::wstring& wname = dp.nstr().wc_str();
+		ULONG wSize = (ULONG)(wname.size() * sizeof(WCHAR));
 		ULONG friSize = sizeof(FILE_RENAME_INFORMATION) + wSize;
 		std::vector<BYTE> buffer(friSize);
 		FILE_RENAME_INFORMATION* fri = (FILE_RENAME_INFORMATION *)buffer.data();
 
 		fri->ReplaceIfExists = replace;
 		fri->RootDirectory = NULL;
-		fri->FileNameLength = dp.length()*sizeof(WCHAR);
-		//fri.FileName = &sp.nstr().wc_str();
+		fri->FileNameLength = wSize;
 
-		memcpy(fri->FileName, &dp.nstr().wc_str() , wSize );
+		memcpy(fri->FileName, wname.data(), wSize);
 
 		IO_STATUS_BLOCK isb;
-		NTSTATUS status = set_information(hFile, &isb, &fri, friSize, FileRenameInformation);
+		NTSTATUS status = set_information(hFile, &isb, fri, friSize, FileRenameInformation);
 
 		close(hFile);
 		if (!NT_SUCCESS(status))
-			throw nexception("NtixFileLib::rename set_information",status);
+		{
+			std::cerr << "s: " << sp << " -> " << dp << std::endl;
+			throw nexception("NtixFileLib::rename set_information ",status);
+		}
 	}
 
 	// NT has no per-file handle count: ObjectBasicInformation.HandleCount is per FILE_OBJECT,
