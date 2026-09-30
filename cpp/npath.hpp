@@ -44,6 +44,10 @@ namespace ntix {
 			bool glob_match(const npath& match) const;
 			std::vector<npath> glob_expand() const;
 			OBJECT_ATTRIBUTES& oa(ULONG oa_flags) const;
+			size_t wsize() const;
+			const wchar_t* wdata() const;
+
+
 			const std::string& str() const;
 			const nstring& nstr() const;
 			const std::vector<nstring>& elements() const;

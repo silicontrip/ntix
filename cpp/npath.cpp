@@ -201,6 +201,16 @@ namespace ntix {
 		return oa_;
 	}
 
+	size_t npath::wsize() const
+	{
+		return nstr().wc_str().size() * sizeof(WCHAR);
+	}
+
+	const wchar_t* npath::wdata() const
+	{
+		return nstr().wc_str().data();
+	}
+
 	bool npath::glob_match(const npath& match) const { return path_.glob_match(match.nstr()); }
 
 	const std::vector<nstring>& npath::elements() const

@@ -348,17 +348,17 @@ NTDLL_FILE_EXPORTS
 			FILE_OPEN, FILE_OPEN_REPARSE_POINT | FILE_SYNCHRONOUS_IO_NONALERT | FILE_OPEN_FOR_BACKUP_INTENT, 0);
 
 		// dp.length() is UTF-8 bytes; the size must come from the wide string
-		const std::wstring& wname = dp.nstr().wc_str();
-		ULONG wSize = (ULONG)(wname.size() * sizeof(WCHAR));
-		ULONG friSize = sizeof(FILE_RENAME_INFORMATION) + wSize;
+		// const std::wstring& wname = dp.nstr().wc_str();
+		// ULONG wSize = (ULONG)dp.wsize();
+		ULONG friSize = sizeof(FILE_RENAME_INFORMATION) + dp.wsize();
 		std::vector<BYTE> buffer(friSize);
 		FILE_RENAME_INFORMATION* fri = (FILE_RENAME_INFORMATION *)buffer.data();
 
 		fri->ReplaceIfExists = replace;
 		fri->RootDirectory = NULL;
-		fri->FileNameLength = wSize;
+		fri->FileNameLength = dp.wsize();
 
-		memcpy(fri->FileName, wname.data(), wSize);
+		memcpy(fri->FileName, dp.wdata(), dp.wsize());
 
 		IO_STATUS_BLOCK isb;
 		NTSTATUS status = set_information(hFile, &isb, fri, friSize, FileRenameInformation);
