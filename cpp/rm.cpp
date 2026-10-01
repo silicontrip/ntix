@@ -91,8 +91,11 @@ class NtixRm {
 				}
 			}
 		} else {
-
+			nfl->delete_file(t.resolve(),force);
 		}
+		if (verbose)
+			cout << t << " removed" << endl;
+
 	}
 
 };
@@ -118,7 +121,7 @@ int main (int argc, char* argv[])
 
 	NtixRm ntixrm;
 
-	ntix.i3confirm = false;
+	//ntix.i3confirm = false;
 	ntixrm.verbose = ag.has_option("v");
 	ntixrm.recurse = ag.has_option("R");
 	ntixrm.directory = ag.has_option("d");
@@ -149,17 +152,17 @@ int main (int argc, char* argv[])
 				entries.push_back(relpath.nstr());
 		}
 
-		if (ntix.interactive3)
+		if (ntixrm.interactive3)
 		{
 			int dircount = 0;
-			nstring dirname;
+			string dirname;
 			for (nstring ent : entries)
 			{
 				npath r = npath(ent);
 				if (nfl->exists(r.resolve()))
 					if (nfl->get_type(r.resolve()) == "Directory")
 					{
-						dirname = ent;
+						dirname = ent.str();
 						dircount++;
 					}
 			}
