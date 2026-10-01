@@ -203,12 +203,12 @@ namespace ntix {
 
 	size_t npath::wsize() const
 	{
-		return nstr().wc_str().size() * sizeof(WCHAR);
+		return nstr().wsize();
 	}
 
 	const wchar_t* npath::wdata() const
 	{
-		return nstr().wc_str().data();
+		return nstr().wdata();
 	}
 
 	bool npath::glob_match(const npath& match) const { return path_.glob_match(match.nstr()); }

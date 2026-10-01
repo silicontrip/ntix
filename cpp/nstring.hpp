@@ -48,6 +48,9 @@ namespace ntix {
 			const UNICODE_STRING& unicode_str() const;
 			const std::string& str() const;
 			const char* c_str() const;
+			size_t wsize() const;
+			const wchar_t* wdata() const;
+
 
 			size_t size() const;
 			bool empty() const;
