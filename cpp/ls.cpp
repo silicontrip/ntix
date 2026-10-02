@@ -207,6 +207,8 @@ class NtixLs {
 				list_vector_file(path,dl);
 				if (recursive_)
 					for (file_directory_info f : dl)
+					{
+						// need link tracking to avoid cyclic listings.
 						if ((f.attrib & 0x10 && !(f.name == ".") && !(f.name == "..")) && !(dont_follow_symlinks_ && (f.attrib & 0x400)))
 						{
 							npath fp(f.name);
@@ -214,6 +216,7 @@ class NtixLs {
 							cout << endl << np << ":" << endl;
 							list_directory(np);
 						}
+					}
 			} else {
 				vector<directory_info> dl = NtixObjectLib::get_instance()->read_directory(path);
 				std::sort(dl.begin(), dl.end(), sortObjectName);

@@ -7,6 +7,21 @@
 #include "nstring.hpp"
 #include "npath.hpp"
 
+typedef enum _KEY_INFORMATION_CLASS
+{
+	KeyBasicInformation, // KEY_BASIC_INFORMATION
+	KeyNodeInformation, // KEY_NODE_INFORMATION
+	KeyFullInformation, // KEY_FULL_INFORMATION
+	KeyNameInformation, // KEY_NAME_INFORMATION
+	KeyCachedInformation, // KEY_CACHED_INFORMATION
+	KeyFlagsInformation, // KEY_FLAGS_INFORMATION
+	KeyVirtualizationInformation, // KEY_VIRTUALIZATION_INFORMATION
+	KeyHandleTagsInformation, // KEY_HANDLE_TAGS_INFORMATION
+	KeyTrustInformation, // KEY_TRUST_INFORMATION
+	KeyLayerInformation, // KEY_LAYER_INFORMATION
+	MaxKeyInfoClass
+} KEY_INFORMATION_CLASS;
+
 typedef struct _OBJECT_DIRECTORY_INFORMATION
 {
     UNICODE_STRING Name;
@@ -16,9 +31,11 @@ typedef struct _OBJECT_DIRECTORY_INFORMATION
 #define NTDLL_OBJECT_EXPORTS \
 	X(NtAdjustPrivilegesToken, NTSTATUS, (HANDLE, BOOLEAN, PTOKEN_PRIVILEGES, ULONG, PTOKEN_PRIVILEGES, PULONG)) \
 	X(NtClose, NTSTATUS, (HANDLE)) \
+	X(NtEnumerateKey, NTSTATUS, (HANDLE, ULONG, KEY_INFORMATION_CLASS, PVOID, ULONG, PULONG)) \
 	X(NtMakeTemporaryObject, NTSTATUS, (HANDLE)) \
 	X(NtOpenDirectoryObject, NTSTATUS, (PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES)) \
 	X(NtOpenEvent, NTSTATUS, (PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES)) \
+	X(NtOpenKey, NTSTATUS, (PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES)) \
 	X(NtOpenMutant, NTSTATUS, (PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES)) \
 	X(NtOpenProcessToken, NTSTATUS, (HANDLE, ACCESS_MASK, PHANDLE)) \
 	X(NtOpenSection, NTSTATUS, (PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES)) \
@@ -28,6 +45,7 @@ typedef struct _OBJECT_DIRECTORY_INFORMATION
 	X(NtQueryDirectoryObject, NTSTATUS, (HANDLE, PVOID, ULONG, BOOLEAN, BOOLEAN, PULONG, PULONG)) \
 	X(NtQueryInformationProcess, NTSTATUS, (HANDLE, PROCESSINFOCLASS, PVOID, ULONG, PULONG)) \
 	X(NtQueryInformationToken, NTSTATUS, (HANDLE, TOKEN_INFORMATION_CLASS, PVOID, ULONG, PULONG)) \
+	X(NtQueryKey, NTSTATUS, (HANDLE, KEY_INFORMATION_CLASS, PVOID, ULONG, PULONG)) \
 	X(NtQueryObject, NTSTATUS, (HANDLE, ULONG, PVOID, ULONG, PULONG)) \
 	X(NtQuerySecurityObject, NTSTATUS, (HANDLE, SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, ULONG, PULONG)) \
 	X(NtQuerySymbolicLinkObject, NTSTATUS, (HANDLE, PUNICODE_STRING, PULONG)) \
@@ -50,6 +68,15 @@ typedef struct directory_info_t {
 	nstring type;
 } directory_info;
 
+typedef struct key_full_info_t {
+	LONGLONG mtime;
+	nstring titlename;
+	nstring classname;
+	nstring valuename;
+	ULONG subkeys;
+	ULONG values;
+} key_full_info;
+
 	class NtixObjectLib {
 	private:
 
@@ -62,10 +89,12 @@ NTDLL_OBJECT_EXPORTS
 
 		static NtixObjectLib* ptr;
 
+		NTSTATUS enumerate_key(HANDLE KeyHandle, ULONG Index, KEY_INFORMATION_CLASS KeyInformationClass, PVOID KeyInformation, ULONG Length, PULONG ResultLength) const;
 		NTSTATUS query(HANDLE Handle, ULONG ObjectInformationClass, PVOID ObjectInformation, ULONG ObjectInformationLength, PULONG ReturnLength) const;
 		NTSTATUS query_directory(HANDLE hDir, PVOID buffer, ULONG bufferLength, BOOLEAN ReturnSingleEntry, BOOLEAN restartScan, PULONG pContext, PULONG pReturnLength) const;
 		NTSTATUS query_information_process(HANDLE ProcessHandle, PROCESSINFOCLASS ProcessInformationClass, PVOID ProcessInformation, ULONG ProcessInformationLength, PULONG ReturnLength) const;
 		NTSTATUS query_information_token(HANDLE TokenHandle, TOKEN_INFORMATION_CLASS TokenInformationClass, PVOID TokenInformation, ULONG TokenInformationLength, PULONG ReturnLength) const;
+		NTSTATUS query_key(HANDLE KeyHandle, KEY_INFORMATION_CLASS KeyInformationClass, PVOID KeyInformation, ULONG Length, PULONG ResultLength) const;
 		NTSTATUS query_symbolic_link(HANDLE hSym, PUNICODE_STRING usTarget, PULONG returnedLength) const;
 		NTSTATUS read_virtual_memory(HANDLE ProcessHandle, PVOID BaseAddress,PVOID Buffer, ULONG NumberOfBytesToRead, PULONG NumberOfBytesRead) const;
 
@@ -94,6 +123,7 @@ NTDLL_OBJECT_EXPORTS
 
 		HANDLE open_directory(npath p, ACCESS_MASK am) const;
 		HANDLE open_event(npath p, ACCESS_MASK am) const;
+		HANDLE open_key(npath p, ACCESS_MASK am) const;
 		HANDLE open_mutant(npath p, ACCESS_MASK am) const;
 		HANDLE open_process_token(HANDLE p, ACCESS_MASK am) const;
 		HANDLE open_section(npath p, ACCESS_MASK am) const;
@@ -110,6 +140,8 @@ NTDLL_OBJECT_EXPORTS
 		ULONG query_system_information_size(SYSTEM_INFORMATION_CLASS SystemInformationClass) const;
 
 		std::vector<directory_info> read_directory(npath p) const;
+		std::vector<key_full_info> read_directory_key(npath p) const;
+
 
 		void set_information(HANDLE Handle, OBJECT_INFORMATION_CLASS ObjectInformationClass, PVOID ObjectInformation, ULONG ObjectInformationLength) const;
 		void set_information_token(HANDLE TokenHandle, TOKEN_INFORMATION_CLASS TokenInformationClass, PVOID TokenInformation, ULONG TokenInformationLength) const;
