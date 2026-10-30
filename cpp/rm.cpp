@@ -115,7 +115,7 @@ int main (int argc, char* argv[])
 
 	if (!ag.parse())
 	{
-		cerr << "usage: rm [-v] <nt_path>" << endl;
+		cerr << "usage: rm [-dfIiRv] <nt|relative path>" << endl;
 		exit(1);
 	}
 

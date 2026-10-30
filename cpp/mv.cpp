@@ -128,13 +128,13 @@ int main (int argc, char* argv[])
 
 	if (!ag.parse())
 	{
-		cerr << "usage: mv [-hv] <nt_path>..<nt_path>" << endl;
+		cerr << "usage: mv [-fhinv] <nt_path>..<nt_path>" << endl;
 		exit(1);
 	}
 
 	if (ag.argument_size() == 0)
 	{
-		cerr << "usage: mv [-hv] <nt_path>..<nt_path>" << endl;
+		cerr << "usage: mv [-fhinv] <nt_path>..<nt_path>" << endl;
 		exit(1);
 	}
 
@@ -162,7 +162,7 @@ int main (int argc, char* argv[])
 
 	if (entries.size() < 2)
 	{
-		cerr << "usage: mv [-v] <nt_path>..<nt_path>" << endl;
+		cerr << "usage: mv [-fhinv] <nt_path>..<nt_path>" << endl;
 		exit(1);
 	}
 
