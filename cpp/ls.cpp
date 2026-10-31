@@ -84,6 +84,7 @@ class NtixLs {
 		bool classify_;
 		bool hex_;
 		bool escape_;
+		bool nocross_;
 
 
 		nstring format_name (nstring s)
@@ -206,6 +207,8 @@ class NtixLs {
 				list_vector_file(path,dl);
 				if (recursive_)
 					for (file_directory_info f : dl)
+					{
+						// need link tracking to avoid cyclic listings.
 						if ((f.attrib & 0x10 && !(f.name == ".") && !(f.name == "..")) && !(dont_follow_symlinks_ && (f.attrib & 0x400)))
 						{
 							npath fp(f.name);
@@ -213,6 +216,7 @@ class NtixLs {
 							cout << endl << np << ":" << endl;
 							list_directory(np);
 						}
+					}
 			} else {
 				vector<directory_info> dl = NtixObjectLib::get_instance()->read_directory(path);
 				std::sort(dl.begin(), dl.end(), sortObjectName);
@@ -227,7 +231,7 @@ class NtixLs {
 							cout << endl << np << ":" << endl;
 							list_directory(p.append_path(npath(f.name)));
 						}
-						if (f.type == "Device")
+						if (f.type == "Device" && !nocross_)
 						{
 							try {
 								npath fp(f.name);
@@ -278,11 +282,11 @@ int main (int argc, char* argv[])
 	ag.add_req("l","",0);
 	ag.add_req("R","",0);
 	ag.add_req("d","",0);
-
+	ag.add_req("x","",0);
 
 	if (!ag.parse())
 	{
-		cerr << "usage: ls <nt_path>" << endl;
+		cerr << "usage: ls [-dlPRx] <nt_path>" << endl;
 		exit(1);
 	}
 
@@ -292,6 +296,7 @@ int main (int argc, char* argv[])
 	ls.long_format_ = ag.has_option("l");
 	ls.recursive_ = ag.has_option("R");
 	ls.dont_follow_directories_ = ag.has_option("d");
+	ls.nocross_ = ag.has_option("x");
 
 	NtixObjectLib* nol = NtixObjectLib::get_instance();
 	NtixFileLib* nfl = NtixFileLib::get_instance();

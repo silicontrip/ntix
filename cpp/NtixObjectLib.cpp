@@ -26,6 +26,11 @@ NTDLL_OBJECT_EXPORTS
 
 // Nt* wrappers, private, return NTSTATUS, do not throw.
 
+	NTSTATUS NtixObjectLib::enumerate_key(HANDLE KeyHandle, ULONG Index, KEY_INFORMATION_CLASS KeyInformationClass, PVOID KeyInformation, ULONG Length, PULONG ResultLength) const
+	{
+		return _NtEnumerateKey(KeyHandle, Index, KeyInformationClass, KeyInformation, Length, ResultLength);
+	}
+
 	NTSTATUS NtixObjectLib::query(HANDLE Handle, ULONG ObjectInformationClass, PVOID ObjectInformation, ULONG ObjectInformationLength, PULONG ReturnLength) const
 	{
 		return _NtQueryObject(Handle, ObjectInformationClass, ObjectInformation, ObjectInformationLength, ReturnLength);
@@ -44,6 +49,11 @@ NTDLL_OBJECT_EXPORTS
 	NTSTATUS NtixObjectLib::query_information_token(HANDLE TokenHandle, TOKEN_INFORMATION_CLASS TokenInformationClass, PVOID TokenInformation, ULONG TokenInformationLength, PULONG ReturnLength) const
 	{
 		return _NtQueryInformationToken(TokenHandle, TokenInformationClass, TokenInformation, TokenInformationLength, ReturnLength);
+	}
+
+	NTSTATUS NtixObjectLib::query_key(HANDLE KeyHandle, KEY_INFORMATION_CLASS KeyInformationClass, PVOID KeyInformation, ULONG Length, PULONG ResultLength) const
+	{
+		return _NtQueryKey(KeyHandle, KeyInformationClass, KeyInformation, Length, ResultLength);
 	}
 
 	NTSTATUS NtixObjectLib::query_symbolic_link(HANDLE hSym, PUNICODE_STRING usTarget, PULONG returnedLength) const
@@ -92,7 +102,8 @@ NTDLL_OBJECT_EXPORTS
 
 		UNICODE_STRING usTarget;
 
-		WCHAR *targetWBuffer = (WCHAR*)malloc(size);
+		std::vector<BYTE> wbuffer(size);
+		WCHAR *targetWBuffer = (WCHAR*)wbuffer.data();
 
 		usTarget.Buffer = targetWBuffer;
 		usTarget.Length = 0;
@@ -106,7 +117,6 @@ NTDLL_OBJECT_EXPORTS
 
 		if (!NT_SUCCESS(status))
 		{
-			free(targetWBuffer);
 			close(hSym);
 			throw nexception("NtixObjectLib::get_symbolic_link_path::query_symbolic_link(usTarget)",status);
 		}
@@ -115,7 +125,6 @@ NTDLL_OBJECT_EXPORTS
 
 		// std::cout << "NtixObjectLib::get_symbolic_link_path query_symbolic_link: " << symPath << std::endl;
 
-		free(targetWBuffer);
 		close(hSym); // should we care about status as this point ?
 		return npath(symPath);
 
@@ -209,6 +218,15 @@ NTDLL_OBJECT_EXPORTS
 		if (!NT_SUCCESS(s))
 			throw nexception("NtixObjectLib::open_event",s);
 		return h;
+	}
+
+	HANDLE NtixObjectLib::open_key(npath p, ACCESS_MASK am) const
+	{
+		HANDLE hKey;
+		NTSTATUS s = _NtOpenKey(&hKey, am, &p.oa(0));
+		if (!NT_SUCCESS(s))
+			throw nexception("NtixObjectLib::open_key",s);
+		return hKey;
 	}
 
 	HANDLE NtixObjectLib::open_mutant(npath p, ACCESS_MASK am) const
@@ -330,12 +348,8 @@ NTDLL_OBJECT_EXPORTS
 		NTSTATUS status;
 		HANDLE hDir = open_directory(p,GENERIC_READ);
 
-		PBYTE query_buf = (PBYTE)malloc(32768);
-		if(!query_buf)
-		{
-			close(hDir);
-			throw nexception("NtixObjectLib::read_directory::malloc(32768)",STATUS_NO_MEMORY);
-		}
+		ULONG sz = 32768;
+		std::vector<BYTE> query_buf(sz);
 
 		ULONG query_context = 0;
 		BOOLEAN restart = TRUE;
@@ -344,21 +358,15 @@ NTDLL_OBJECT_EXPORTS
 
 		for (;;) {
 			ULONG retLen = 0;
-			status = query_directory(hDir, query_buf, 32768, false, restart, &query_context, &retLen);
+			status = query_directory(hDir, (PVOID)query_buf.data(), sz, false, restart, &query_context, &retLen);
 
 			//std::cout << "NtixObjectLib::read_directory retLen: " << retLen << std::endl;
 
 			restart = FALSE;
-			if (status == STATUS_NO_MORE_ENTRIES) break;
-
 			if (!NT_SUCCESS(status))
-			{
-				close(hDir);
-				free(query_buf);
-				throw nexception("NtixObjectLib::read_directory::query_directory",status);
-			}
+				break;
 
-			OBJECT_DIRECTORY_INFORMATION *pObjInfo = (OBJECT_DIRECTORY_INFORMATION *)query_buf;
+			OBJECT_DIRECTORY_INFORMATION *pObjInfo = (OBJECT_DIRECTORY_INFORMATION *)query_buf.data();
 			ULONG offset = 0;
 			while (pObjInfo->Name.Length > 0 && offset + sizeof(OBJECT_DIRECTORY_INFORMATION) <= retLen) {
 
@@ -377,10 +385,20 @@ NTDLL_OBJECT_EXPORTS
 				offset += sizeof(OBJECT_DIRECTORY_INFORMATION);
 			}
 		}
-		free(query_buf);
+		//free(query_buf);
 		close(hDir);
+		if (status != STATUS_NO_MORE_ENTRIES)
+			throw nexception("NtixObjectLib::read_directory::query_directory",status);
+
 		return directory_list;
 	}
+
+	std::vector<key_full_info> NtixObjectLib::read_directory_key(npath p) const
+	{
+		HANDLE hKey = open_key(p,GENERIC_READ);
+// //
+	}
+
 
 	void NtixObjectLib::set_information(HANDLE Handle, OBJECT_INFORMATION_CLASS ObjectInformationClass, PVOID ObjectInformation, ULONG ObjectInformationLength) const
 	{

@@ -188,6 +188,16 @@ namespace ntix {
 		return *utf8_;
 	}
 
+	size_t nstring::wsize() const
+	{
+		return wc_str().size() * sizeof(WCHAR);
+	}
+
+	const wchar_t* nstring::wdata() const
+	{
+		return wc_str().data();
+	}
+
 	size_t nstring::size() const { return this->str().size(); }
 	bool nstring::empty() const { return this->str().empty(); }
 
