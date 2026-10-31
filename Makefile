@@ -10,7 +10,7 @@ CXX_LDFLAGS= -lm -static
 
 LIBS = -lntdll
 
-CPP_CORE_OBJS = cpp/narguments.o cpp/nexception.o cpp/nstring.o cpp/npath.o cpp/NtixCoreLib.o cpp/NtixLoader.o cpp/NtixObjectLib.o cpp/NtixFileLib.o
+CPP_CORE_OBJS = cpp/narguments.o cpp/nexception.o cpp/nstring.o cpp/npath.o cpp/NtixCoreLib.o cpp/NtixLoader.o cpp/NtixObjectLib.o cpp/NtixFileLib.o cpp/NtixRegistryLib.o
 
 
 TEST = bin/test_cpp.exe bin/path_test.exe
