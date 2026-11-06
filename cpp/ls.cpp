@@ -1,5 +1,6 @@
 #include "NtixFileLib.hpp"
 #include "NtixObjectLib.hpp"
+#include "NtixRegistryLib.hpp"
 #include "narguments.hpp"
 #include "npath.hpp"
 #include "nstring.hpp"
@@ -71,7 +72,10 @@ bool sortFileName(const file_directory_info& a, const file_directory_info& b)
 	return a.name.compare(b.name) < 0;
 }
 
-
+bool sortKeyName(const key_entry& a, const key_entry& b)
+{
+	return a.name.compare(b.name) < 0;
+}
 
 
 class NtixLs {
@@ -85,6 +89,10 @@ class NtixLs {
 		bool hex_;
 		bool escape_;
 		bool nocross_;
+
+		bool sortsize_;
+		bool sortdate_;
+		bool sortreverse_;
 
 
 		nstring format_name (nstring s)
@@ -196,58 +204,105 @@ class NtixLs {
 
 		}
 
+		void list_vector_key(npath parent, vector<key_entry> dl)
+		{
+			NtixRegistryLib* nrl = NtixRegistryLib::get_instance();
+			if (long_format_)
+			{
+				for (key_entry entry: dl)
+				{
+
+					nstring date_str = date_formatter(entry.wtime);
+					npath fp = parent.append_path(npath(entry.name));
+
+					//cerr << "DEBUG: ls list_vector_key: long_format_ " << entry.name << endl;
+
+
+					try {
+						if (nrl->is_symlink(fp))
+						{
+							npath link = nrl->get_symbolic_link_path(fp);
+							cout << "k " << date_str << " " << entry.name << " -> " << link << endl;
+						} else {
+							cout << "k " << date_str << " " << entry.name << endl;
+						}
+					} catch (nexception& e) {
+						cout << "k " << date_str << " " << entry.name << endl;
+					}
+					//cerr << "DEBUG: ls list_vector_key: long_format_ EOL" << endl;
+
+				}
+			} else {
+				vector<nstring> ne;
+				for (key_entry entry: dl)
+					ne.push_back(entry.name);
+				print_columns(ne);
+			}
+		}
+
 		void list_directory(npath p)
 		{
 			try {
 
-			npath path = p.resolve();
-			if (path.type() == "File") {
-				vector<file_directory_info> dl = NtixFileLib::get_instance()->read_directory(path);
-				std::sort(dl.begin(), dl.end(), sortFileName);
-				list_vector_file(path,dl);
-				if (recursive_)
-					for (file_directory_info f : dl)
-					{
-						// need link tracking to avoid cyclic listings.
-						if ((f.attrib & 0x10 && !(f.name == ".") && !(f.name == "..")) && !(dont_follow_symlinks_ && (f.attrib & 0x400)))
+				npath path = p.resolve();
+				nstring t = path.type();
+
+				//cerr << "DEBUG: path: " << path << " type: " << t << endl;
+
+				if (t == "File") {
+					vector<file_directory_info> dl = NtixFileLib::get_instance()->read_directory(path);
+					std::sort(dl.begin(), dl.end(), sortFileName);
+					list_vector_file(path,dl);
+					if (recursive_)
+						for (file_directory_info f : dl)
 						{
-							npath fp(f.name);
-							npath np = p.append_path(fp);
-							cout << endl << np << ":" << endl;
-							list_directory(np);
-						}
-					}
-			} else {
-				vector<directory_info> dl = NtixObjectLib::get_instance()->read_directory(path);
-				std::sort(dl.begin(), dl.end(), sortObjectName);
-				list_vector_object(p,dl);
-				if (recursive_)
-					for (directory_info f : dl)
-					{
-						if (f.type == "Directory")
-						{
-							npath fp(f.name);
-							npath np = p.append_path(fp);
-							cout << endl << np << ":" << endl;
-							list_directory(p.append_path(npath(f.name)));
-						}
-						if (f.type == "Device" && !nocross_)
-						{
-							try {
+							// need link tracking to avoid cyclic listings.
+							if ((f.attrib & 0x10 && !(f.name == ".") && !(f.name == "..")) && !(dont_follow_symlinks_ && (f.attrib & 0x400)))
+							{
 								npath fp(f.name);
 								npath np = p.append_path(fp);
-								if (NtixFileLib::get_instance()->is_fs(np.with_trailing()))
-								{
-									//cout << "Device exists" << endl;
-									cout << endl << np.with_trailing() << ":" << endl;
-									list_directory(np.with_trailing());
+								cout << endl << np << ":" << endl;
+								list_directory(np);
+							}
+						}
+				} else if (t == "Object") {
+					vector<directory_info> dl = NtixObjectLib::get_instance()->read_directory(path);
+					std::sort(dl.begin(), dl.end(), sortObjectName);
+					list_vector_object(p,dl);
+					if (recursive_)
+					{
+						for (directory_info f : dl)
+						{
+							if (f.type == "Directory")
+							{
+								npath fp(f.name);
+								npath np = p.append_path(fp);
+								cout << endl << np << ":" << endl;
+								list_directory(p.append_path(npath(f.name)));
+							}
+							if (f.type == "Device" && !nocross_)
+							{
+								try {
+									npath fp(f.name);
+									npath np = p.append_path(fp);
+									if (NtixFileLib::get_instance()->is_fs(np.with_trailing()))
+									{
+										//cout << "Device exists" << endl;
+										cout << endl << np.with_trailing() << ":" << endl;
+										list_directory(np.with_trailing());
+									}
+								} catch (nexception& e) {
+									;
 								}
-							} catch (nexception& e) {
-								;
 							}
 						}
 					}
-			}
+				} else if (t == "Key") {
+					vector<key_entry> dl = NtixRegistryLib::get_instance()->read_keys(path);
+					std::sort(dl.begin(), dl.end(), sortKeyName);
+					list_vector_key(p,dl);
+
+				}
 			} catch (nexception& e) {
 				switch (e.status()) {
 					case STATUS_OBJECT_TYPE_MISMATCH:
@@ -280,13 +335,16 @@ int main (int argc, char* argv[])
 
 	ag.add_req("P","",0);
 	ag.add_req("l","",0);
-	ag.add_req("R","",0);
+	ag.add_req("R","recurse",0);
 	ag.add_req("d","",0);
 	ag.add_req("x","",0);
+	ag.add_req("S","size",0);
+	ag.add_req("t","time",0);
+	ag.add_req("r","reverse",0);
 
 	if (!ag.parse())
 	{
-		cerr << "usage: ls [-dlPRx] <nt_path>" << endl;
+		cerr << "usage: ls [-dlPRrStx] <nt_path>" << endl;
 		exit(1);
 	}
 
@@ -297,9 +355,13 @@ int main (int argc, char* argv[])
 	ls.recursive_ = ag.has_option("R");
 	ls.dont_follow_directories_ = ag.has_option("d");
 	ls.nocross_ = ag.has_option("x");
+	ls.sortdate_ = ag.has_option("t");
+	ls.sortsize_ = ag.has_option("S");
+	ls.sortreverse_ = ag.has_option("r");
 
 	NtixObjectLib* nol = NtixObjectLib::get_instance();
 	NtixFileLib* nfl = NtixFileLib::get_instance();
+	NtixRegistryLib* nrl = NtixRegistryLib::get_instance();
 
 	if (ag.argument_size() == 0)
 	{
@@ -349,7 +411,7 @@ int main (int argc, char* argv[])
 						dirs.push_back(relpath);
 					else
 						files.push_back(relpath);
-				} else {
+				} else if (pt == "Object") {
 					nstring ft = nol->get_type(path);
 					if (ft == "Directory" || ft == "Key")
 					{
@@ -367,6 +429,8 @@ int main (int argc, char* argv[])
 					}
 					else
 						files.push_back(relpath);
+				} else if (pt == "Key") {
+					dirs.push_back(relpath);
 				}
 			} catch (nexception& e) {
 				;
@@ -376,6 +440,7 @@ int main (int argc, char* argv[])
 		bool first = true;
 		vector<directory_info> olist;
 		vector<file_directory_info> flist;
+		vector<key_entry> klist;
 		for (npath relpath : files)
 		{
 			try {
@@ -388,10 +453,16 @@ int main (int argc, char* argv[])
 					file_directory_info entry = nfl->get_info(path);
 					entry.name = relpath.nstr();
 					flist.push_back(entry);
-				} else { // only other return is Object
+				} else if (pt == "Object") {
 					nstring ot = nol->get_type(path);
 					olist.push_back({path.nstr(),ot});
 				}
+				/* a key path is always a container
+				else if (pt == "Key") {
+					key_info ki = nrl->get_info(path);
+					klist.push_back({path.nstr(),ki.wtime});
+				}
+				*/
 			} catch (nexception& e) {
 				switch (e.status()) {
 					case STATUS_OBJECT_TYPE_MISMATCH:
@@ -416,6 +487,7 @@ int main (int argc, char* argv[])
 
 		ls.list_vector_file(npath(".").resolve(),flist);
 		ls.list_vector_object(npath(""),olist);
+		// ls.list_vector_key(npath(""),klist);
 
 		for (npath relpath : dirs)
 		{

@@ -422,6 +422,8 @@ namespace ntix {
 					return "Object";
 			}
 		}
+		if (key)
+			return "Key";
 		return "Object";
 	}
 
