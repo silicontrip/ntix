@@ -26,11 +26,6 @@ NTDLL_OBJECT_EXPORTS
 
 // Nt* wrappers, private, return NTSTATUS, do not throw.
 
-	NTSTATUS NtixObjectLib::enumerate_key(HANDLE KeyHandle, ULONG Index, KEY_INFORMATION_CLASS KeyInformationClass, PVOID KeyInformation, ULONG Length, PULONG ResultLength) const
-	{
-		return _NtEnumerateKey(KeyHandle, Index, KeyInformationClass, KeyInformation, Length, ResultLength);
-	}
-
 	NTSTATUS NtixObjectLib::query(HANDLE Handle, ULONG ObjectInformationClass, PVOID ObjectInformation, ULONG ObjectInformationLength, PULONG ReturnLength) const
 	{
 		return _NtQueryObject(Handle, ObjectInformationClass, ObjectInformation, ObjectInformationLength, ReturnLength);
@@ -49,11 +44,6 @@ NTDLL_OBJECT_EXPORTS
 	NTSTATUS NtixObjectLib::query_information_token(HANDLE TokenHandle, TOKEN_INFORMATION_CLASS TokenInformationClass, PVOID TokenInformation, ULONG TokenInformationLength, PULONG ReturnLength) const
 	{
 		return _NtQueryInformationToken(TokenHandle, TokenInformationClass, TokenInformation, TokenInformationLength, ReturnLength);
-	}
-
-	NTSTATUS NtixObjectLib::query_key(HANDLE KeyHandle, KEY_INFORMATION_CLASS KeyInformationClass, PVOID KeyInformation, ULONG Length, PULONG ResultLength) const
-	{
-		return _NtQueryKey(KeyHandle, KeyInformationClass, KeyInformation, Length, ResultLength);
 	}
 
 	NTSTATUS NtixObjectLib::query_symbolic_link(HANDLE hSym, PUNICODE_STRING usTarget, PULONG returnedLength) const
@@ -160,6 +150,10 @@ NTDLL_OBJECT_EXPORTS
 					return ent.type;
 			}
 		} catch (nexception& e) {
+
+			// this could mean Filesystem
+			// this could mean Registry
+
 			if (e.status() == STATUS_OBJECT_TYPE_MISMATCH)
 				throw(nexception("NtixObjectLib::get_type read_directory", STATUS_OBJECT_NAME_NOT_FOUND));
 			throw e;
@@ -218,15 +212,6 @@ NTDLL_OBJECT_EXPORTS
 		if (!NT_SUCCESS(s))
 			throw nexception("NtixObjectLib::open_event",s);
 		return h;
-	}
-
-	HANDLE NtixObjectLib::open_key(npath p, ACCESS_MASK am) const
-	{
-		HANDLE hKey;
-		NTSTATUS s = _NtOpenKey(&hKey, am, &p.oa(0));
-		if (!NT_SUCCESS(s))
-			throw nexception("NtixObjectLib::open_key",s);
-		return hKey;
 	}
 
 	HANDLE NtixObjectLib::open_mutant(npath p, ACCESS_MASK am) const
@@ -392,13 +377,6 @@ NTDLL_OBJECT_EXPORTS
 
 		return directory_list;
 	}
-
-	std::vector<key_full_info> NtixObjectLib::read_directory_key(npath p) const
-	{
-		HANDLE hKey = open_key(p,GENERIC_READ);
-// //
-	}
-
 
 	void NtixObjectLib::set_information(HANDLE Handle, OBJECT_INFORMATION_CLASS ObjectInformationClass, PVOID ObjectInformation, ULONG ObjectInformationLength) const
 	{

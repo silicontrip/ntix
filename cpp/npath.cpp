@@ -1,5 +1,6 @@
 #include "npath.hpp"
 #include "NtixObjectLib.hpp"
+#include "NtixRegistryLib.hpp"
 
 namespace ntix {
 
@@ -87,20 +88,26 @@ namespace ntix {
 		//std::cerr << "npath::glob_expand() parent type: " << dir.type() << std::endl;
 
 
-		if (dir.type() == "File")
+		nstring t = dir.type();
+		if (t == "File")
 		{
-			std::vector<file_directory_info>  entries = NtixFileLib::get_instance()->read_directory(dir);
+			std::vector<file_directory_info> entries = NtixFileLib::get_instance()->read_directory(dir);
 			for (const file_directory_info& e : entries) {
 				// never glob-match . or .. (zsh / bash globskipdots semantics); the OM doesn't list them
 				if (e.name == "." || e.name == "..")
 					continue;
 				names.push_back(e.name);
 			}
-		} else {
+		} else if (t == "Object") {
 			std::vector<directory_info> entries = NtixObjectLib::get_instance()->read_directory(dir);
 			for (const directory_info& e : entries) {
 				//std::cerr << "npath::glob_expand DEBUG: entry: " << e.name << std::endl;
 
+				names.push_back(e.name);
+			}
+		} else if (t == "Key") {
+			std::vector<key_entry> entries = NtixRegistryLib::get_instance()->read_keys(dir);
+			for (const key_entry& e : entries) {
 				names.push_back(e.name);
 			}
 		}
@@ -262,10 +269,10 @@ namespace ntix {
 
 	const npath npath::parent() const {
 		nstring t = strip_trailing().type();
-		if (t == "Object")
+		if (t == "Object" || t == "Key")
 			return subpath(0,size()-1);
-		else
-			return subpath(0,size()-1).with_trailing();
+		//if (t == "File")
+		return subpath(0,size()-1).with_trailing();
 	}
 
 	const npath npath::object_parent() const
@@ -373,9 +380,11 @@ namespace ntix {
 			return "File";
 		NtixObjectLib* nol = NtixObjectLib::get_instance();
 		NtixFileLib* nfl = NtixFileLib::get_instance();
+		// NtixRegistryLib* nrl = NtixRegistryLib::get_instance();
 
 		size_t sz = size();
 		bool file = false;
+		bool key = false;
 		for (int el=1; el <= sz; el++)
 		{
 			try {
@@ -391,11 +400,16 @@ namespace ntix {
 						file = true;
 					}
 				}
+				if (type == "Key")
+					key = true;
 
 			} catch (nexception& e) {
 				// depending on the error here we do different things... maybe?
 				if (file)
 					return "File";
+
+				if (key)
+					return "Key";
 
 				if (e.status() == STATUS_OBJECT_NAME_NOT_FOUND)
 					return "Object";
