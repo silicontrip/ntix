@@ -176,6 +176,15 @@ NTDLL_OBJECT_EXPORTS
 			if (e.status() != STATUS_OBJECT_TYPE_MISMATCH )
 				throw e;
 		}
+		try {
+			HANDLE h = open_key(p,GENERIC_READ);
+			close(h);
+			return "Key";
+		} catch (nexception& e) {
+			if (e.status() != STATUS_OBJECT_TYPE_MISMATCH )
+				throw e;
+		}
+		// registry type
 		std::cerr << "NtixObjectLib::get_type UNHANDLED TYPE" << std::endl;  // I'm working on it
 		throw(nexception("NtixObjectLib::get_type", STATUS_OBJECT_NAME_NOT_FOUND));
 	}
@@ -209,6 +218,15 @@ NTDLL_OBJECT_EXPORTS
 	{
 		HANDLE h;
 		NTSTATUS s = _NtOpenEvent(&h, am, &p.oa(0));
+		if (!NT_SUCCESS(s))
+			throw nexception("NtixObjectLib::open_event",s);
+		return h;
+	}
+
+	HANDLE NtixObjectLib::open_key(npath p, ACCESS_MASK am) const
+	{
+		HANDLE h;
+		NTSTATUS s = _NtOpenKey(&h, am, &p.oa(0));
 		if (!NT_SUCCESS(s))
 			throw nexception("NtixObjectLib::open_event",s);
 		return h;
@@ -370,7 +388,6 @@ NTDLL_OBJECT_EXPORTS
 				offset += sizeof(OBJECT_DIRECTORY_INFORMATION);
 			}
 		}
-		//free(query_buf);
 		close(hDir);
 		if (status != STATUS_NO_MORE_ENTRIES)
 			throw nexception("NtixObjectLib::read_directory::query_directory",status);

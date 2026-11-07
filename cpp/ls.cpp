@@ -187,12 +187,12 @@ class NtixLs {
 						try {
 							npath child(entry.name);
 							npath link = NtixObjectLib::get_instance()->get_symbolic_link_path(parent.append_path(child));
-							cout << setw(20) << entry.type << " " << entry.name << " -> " << link <<  endl;
+							cout << "o " << setw(20) << entry.type << " " << entry.name << " -> " << link <<  endl;
 						} catch (nexception& e) {
-							cout << setw(20) << entry.type << " " << entry.name << " -> [" << e.status_str() << "]" <<  endl;
+							cout << "o " << setw(20) << entry.type << " " << entry.name << " -> [" << e.status_str() << "]" <<  endl;
 						}
 					} else {
-						cout << setw(20) << entry.type << " " << entry.name << endl;
+						cout << "o " << setw(20) << entry.type << " " << entry.name << endl;
 					}
 
 			} else {
@@ -278,7 +278,7 @@ class NtixLs {
 								npath fp(f.name);
 								npath np = p.append_path(fp);
 								cout << endl << np << ":" << endl;
-								list_directory(p.append_path(npath(f.name)));
+								list_directory(np);
 							}
 							if (f.type == "Device" && !nocross_)
 							{
@@ -301,7 +301,17 @@ class NtixLs {
 					vector<key_entry> dl = NtixRegistryLib::get_instance()->read_keys(path);
 					std::sort(dl.begin(), dl.end(), sortKeyName);
 					list_vector_key(p,dl);
-
+					if (recursive_)
+					{
+						for (key_entry f : dl)
+						{
+							// however a key might be empty
+							npath fp(f.name);
+							npath np = p.append_path(fp);
+							cout << endl << np << ":" << endl;
+							list_directory(np);
+						}
+					}
 				}
 			} catch (nexception& e) {
 				switch (e.status()) {
