@@ -19,6 +19,7 @@ TOOLS = \
 	bin/ls.exe \
 	bin/mount.exe \
 	bin/mv.exe \
+	bin/reboot.exe \
 	bin/rm.exe
 
 all: setup $(TOOLS)
@@ -48,6 +49,9 @@ bin/mount.exe: cpp/mount.cpp $(CPP_CORE_OBJS)
 	$(CXX) $(CFLAGS) $(CXXFLAGS) $^ -o $@ $(CXX_LDFLAGS) $(LIBS)
 
 bin/mv.exe: cpp/mv.cpp $(CPP_CORE_OBJS)
+	$(CXX) $(CFLAGS) $(CXXFLAGS) $^ -o $@ $(CXX_LDFLAGS) $(LIBS)
+
+bin/reboot.exe: cpp/reboot.cpp $(CPP_CORE_OBJS)
 	$(CXX) $(CFLAGS) $(CXXFLAGS) $^ -o $@ $(CXX_LDFLAGS) $(LIBS)
 
 bin/rm.exe: cpp/rm.cpp $(CPP_CORE_OBJS)

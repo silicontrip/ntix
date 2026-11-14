@@ -1,4 +1,5 @@
 #include "NtixCoreLib.hpp"
+#include "nexception.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -139,6 +140,15 @@ NTDLL_CORE_EXPORTS
 		return _NtQuerySystemTime(sysTime);
 	}
 
+	bool NtixCoreLib::adjust_privilege(ULONG privilege, bool enable, bool disable_all) const
+	{
+		BOOLEAN rv;
+		NTSTATUS s = _RtlAdjustPrivilege(privilege,enable,disable_all,&rv);
+		if (!NT_SUCCESS(s))
+			throw nexception("NtixCoreLib::adjust_privilege",s);
+		return rv;
+	}
+
 	LONGLONG NtixCoreLib::system_time() const
 	{
 		LARGE_INTEGER st;
@@ -189,6 +199,13 @@ NTDLL_CORE_EXPORTS
 			throw nexception("npath::ResolveFullPath failed", STATUS_UNSUCCESSFUL);
 		result.resize(written / sizeof(WCHAR));
 		return result;
+	}
+
+	void NtixCoreLib::shutdown_system(ULONG mode) const
+	{
+		NTSTATUS s = _NtShutdownSystem(mode);
+		if (!NT_SUCCESS(s))
+			throw nexception("NtixCoreLib::shutdown_system",s);
 	}
 
 	int NtixCoreLib::terminal_width() const {

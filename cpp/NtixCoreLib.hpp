@@ -8,10 +8,12 @@
 #include "nstring.hpp"
 
 #define NTDLL_CORE_EXPORTS \
+	X(RtlAdjustPrivilege,NTSTATUS,(ULONG, BOOLEAN, BOOLEAN, PBOOLEAN)) \
 	X(RtlMultiByteToUnicodeN, NTSTATUS, (WCHAR*, ULONG, PULONG, const char*, ULONG)) \
 	X(RtlUnicodeToMultiByteN, NTSTATUS, (char*, ULONG, PULONG, const WCHAR*, ULONG)) \
 	X(RtlGetFullPathName_U, NTSTATUS, (PCWSTR, ULONG, PWSTR, PWSTR*)) \
-	X(NtQuerySystemTime, NTSTATUS, (PLARGE_INTEGER))
+	X(NtQuerySystemTime, NTSTATUS, (PLARGE_INTEGER)) \
+	X(NtShutdownSystem, NTSTATUS, (ULONG))
 
 #define X(name, ret, args) typedef ret (NTAPI *_##name##_t) args;
 NTDLL_CORE_EXPORTS
@@ -46,10 +48,10 @@ NTDLL_CORE_EXPORTS
 
 		ULONG unique_counter_ = 0;
 
-		NTSTATUS query_system_time(PLARGE_INTEGER sysTime) const;
+		NTSTATUS full_pathname(PCWSTR filename, ULONG len, PWSTR buffer, PWSTR* filepart) const;
 		NTSTATUS multibyte_to_unicode(WCHAR* ustr, ULONG max, PULONG bytes, const char* utf8, ULONG len) const;
 		NTSTATUS unicode_to_multibyte(char* utf8, ULONG max, PULONG bytes, const WCHAR* ustr, ULONG len) const;
-		NTSTATUS full_pathname(PCWSTR filename, ULONG len, PWSTR buffer, PWSTR* filepart) const;
+		NTSTATUS query_system_time(PLARGE_INTEGER sysTime) const;
 
 	public:
 		static const std::string status_str(NTSTATUS status);
@@ -60,13 +62,15 @@ NTDLL_CORE_EXPORTS
 		NtixCoreLib& operator=(const NtixCoreLib&) = delete;
 		NtixCoreLib& operator=(NtixCoreLib&&) = delete;
 
-		LONGLONG system_time() const;
+		bool adjust_privilege(ULONG privilege, bool enable, bool disable_all) const;
 		std::wstring utf8_to_wide(const std::string& utf8) const;
 		std::string wide_to_utf8(const std::wstring& wide) const;
 		std::wstring resolve_path(const std::wstring& in) const;
 		int terminal_width() const;
 		ULONG_PTR process_id() const;
 		bool prompt_yes(const std::string& message) const;
+		void shutdown_system(ULONG mode) const;
+		LONGLONG system_time() const;
 		std::string unique_string();
 
 	};
