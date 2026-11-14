@@ -116,6 +116,8 @@ NTDLL_OBJECT_EXPORTS
 		ULONG query_size(HANDLE oh, ULONG oic) const;
 		ULONG query_information_process_size(HANDLE ph, PROCESSINFOCLASS pic) const;
 		ULONG query_information_token_size(HANDLE ph, TOKEN_INFORMATION_CLASS tic) const;
+		TOKEN_PRIVILEGES query_token_privileges(HANDLE ph) const;
+		TOKEN_MANDATORY_LABEL NtixObjectLib::query_token_integrity(HANDLE ph) const;
 		ULONG query_security_size(HANDLE Handle) const;
 		ULONG query_symbolic_link_size(HANDLE hSym) const;
 		ULONG query_system_information_size(SYSTEM_INFORMATION_CLASS SystemInformationClass) const;

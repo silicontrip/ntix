@@ -298,6 +298,38 @@ NTDLL_OBJECT_EXPORTS
 		return ReturnLength;
 	}
 
+	TOKEN_PRIVILEGES NtixObjectLib::query_token_privileges(HANDLE ph) const
+	{
+		ULONG LengthNeeded = query_information_token_size(ph,TokenPrivileges);
+		std::vector<BYTE> query_buf(LengthNeeded);
+
+		DWORD cb = 0;
+
+		NTSTATUS s = _NtQueryInformationToken(ph,TokenPrivileges,(PVOID)query_buf.data(),LengthNeeded,&cb);
+		if (!NT_SUCCESS(s))
+			throw nexception("NtixObjectLib::query_token_privileges",s);
+
+		TOKEN_PRIVILEGES* tp = (TOKEN_PRIVILEGES*)query_buf.data();
+
+		return *tp;
+	}
+
+	TOKEN_MANDATORY_LABEL NtixObjectLib::query_token_integrity(HANDLE ph) const
+	{
+		ULONG LengthNeeded = 64;
+		std::vector<BYTE> query_buf(LengthNeeded);
+
+		DWORD cb = 0;
+
+		NTSTATUS s = _NtQueryInformationToken(ph,TokenIntegrityLevel,(PVOID)query_buf.data(),LengthNeeded,&cb);
+		if (!NT_SUCCESS(s))
+			throw nexception("NtixObjectLib::query_token_integrity",s);
+
+		TOKEN_MANDATORY_LABEL* tp = (TOKEN_MANDATORY_LABEL*)query_buf.data();
+
+		return *tp;
+	}
+
 	ULONG NtixObjectLib::query_security_size(HANDLE Handle) const
 	{
 		ULONG LengthNeeded;

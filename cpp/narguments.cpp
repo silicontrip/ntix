@@ -189,6 +189,6 @@ namespace ntix {
 		int r;
 		istringstream(parsed_args.at(s).at(0).str()) >> r;
 		return r;
-}
+	}
 
 }
