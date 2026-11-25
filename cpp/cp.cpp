@@ -4,6 +4,8 @@
 #include "nstring.hpp"
 #include "nexception.hpp"
 #include <sstream>
+#include <iomanip>
+#include <cmath>
 
 using namespace std;
 using namespace ntix;
@@ -12,14 +14,95 @@ class NtixCp {
 
     private:
 
+        // rsync-style progress: redrawn in place on stderr as
+        //   1,234,567  45%  1,234,567.89 bytes/sec  0:00:12
+        static std::string commas(LONGLONG n)
+        {
+            std::string s = std::to_string(n);
+            std::string out;
+            for (int i = (int)s.size() - 1, count = 0; i >= 0; --i, ++count)
+            {
+                if (count > 0 && count % 3 == 0)
+                    out.push_back(',');
+                out.push_back(s[i]);
+            }
+            return std::string(out.rbegin(), out.rend());
+        }
+
+        static std::string format_rate(double rate)
+        {
+            long whole = (long)rate;
+            int frac = (int)((rate - whole) * 100.0 + 0.5);
+            if (frac >= 100) { whole += 1; frac -= 100; }
+            std::ostringstream ss;
+            ss << commas(whole) << "." << std::setfill('0') << std::setw(2) << frac;
+            return ss.str();
+        }
+
+        static std::string format_eta(double seconds)
+        {
+            if (seconds < 0 || !std::isfinite(seconds))
+                return "?";
+            long total = (long)seconds;
+            long h = total / 3600;
+            long m = (total % 3600) / 60;
+            long s = total % 60;
+            std::ostringstream ss;
+            ss << h << ":" << std::setfill('0') << std::setw(2) << m
+               << ":" << std::setw(2) << s;
+            return ss.str();
+        }
+
+        static void print_progress(LONGLONG done, LONGLONG total, LONGLONG start, LONGLONG now)
+        {
+            double elapsed = (now - start) / 10000000.0; // 100ns ticks -> seconds
+            double rate = elapsed > 0.0 ? (double)done / elapsed : 0.0;
+            double pct = total > 0 ? (double)done / (double)total * 100.0 : -1.0;
+            double eta = (total > 0 && rate > 0.0) ? (double)(total - done) / rate : -1.0;
+
+            std::ostringstream ss;
+            ss << std::setfill(' ') << std::setw(16) << commas(done) << "  ";
+            if (pct >= 0.0)
+                ss << std::setw(3) << (int)pct << "%";
+            else
+                ss << "--%";
+            ss << "  " << format_rate(rate) << " bytes/sec  " << format_eta(eta);
+
+            std::string line = ss.str();
+            // pad to the console width so a shorter redraw overwrites the tail
+            // of the previous, longer line
+            int width = NtixCoreLib::get_instance()->terminal_width();
+            if ((int)line.size() < width)
+                line.append((size_t)(width - (int)line.size()), ' ');
+
+            cerr << '\r' << line << flush;
+        }
+
         void copy_data(npath s, npath d) const
         {
             NtixFileLib* nfl = NtixFileLib::get_instance();
+            NtixCoreLib* scl = NtixCoreLib::get_instance();
 
             HANDLE hSrc = nfl->open(s, FILE_READ_DATA | SYNCHRONIZE, FILE_SHARE_READ, FILE_OPEN, FILE_NON_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT | FILE_SEQUENTIAL_ONLY);
             HANDLE hDst = nfl->open(d, FILE_WRITE_DATA | SYNCHRONIZE, 0, FILE_OVERWRITE_IF, FILE_NON_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT | FILE_SEQUENTIAL_ONLY);
 
+            // 0 total means "size unknown" (e.g. devices): show bytes + rate, no %
+            LONGLONG total = 0;
+            LONGLONG start = 0;
+            if (progress_)
+            {
+                try {
+                    total = nfl->get_info(s.resolve()).size;
+                } catch (...) {
+                    total = 0;
+                }
+                start = scl->system_time();
+            }
+
             vector<BYTE> buffer(blocksize_);
+
+            LONGLONG done = 0;
+            LONGLONG last_print = 0;
 
             try {
                 while (true)
@@ -28,12 +111,32 @@ class NtixCp {
                     if (bytesRead == 0)
                         break;
                     nfl->write_data(hDst, buffer, bytesRead);
+                    done += bytesRead;
+
+                    if (progress_)
+                    {
+                        LONGLONG now = scl->system_time();
+                        if (now - last_print >= 1000000) // 100ms
+                        {
+                            print_progress(done, total, start, now);
+                            last_print = now;
+                        }
+                    }
                 }
             } catch (...) {
+                if (progress_)
+                    cerr << '\n';
                 nfl->close(hSrc);
                 nfl->close(hDst);
                 throw;
             }
+
+            if (progress_)
+            {
+                print_progress(done, total, start, scl->system_time());
+                cerr << '\n';
+            }
+
             nfl->close(hSrc);
             nfl->close(hDst);
         }
@@ -235,7 +338,10 @@ int main(int argc, char *argv[]) {
 
     NtixCp ntixcp;
 
-    ntixcp.blocksize_ = ag.get_option_for_key_as_int("b");
+    if (ag.has_option("b"))
+        ntixcp.blocksize_ = ag.get_option_for_key_as_int("b");
+    else
+        ntixcp.blocksize_ = 65536;
     ntixcp.recursive_ = ag.has_option("r") || ag.has_option("R");
     ntixcp.verbose_ = ag.has_option("v");
     ntixcp.progress_ = ag.has_option("P");
