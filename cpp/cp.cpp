@@ -83,8 +83,16 @@ class NtixCp {
             NtixFileLib* nfl = NtixFileLib::get_instance();
             NtixCoreLib* scl = NtixCoreLib::get_instance();
 
+            // Devices need FILE_OPEN not FILE_OVERWRITE_IF
+            ULONG dstDisposition = FILE_OVERWRITE_IF;
+            try {
+                nstring dtype = nfl->get_type(d.resolve());
+                if (dtype == "Volume" || dtype == "Device")
+                    dstDisposition = FILE_OPEN;
+            } catch (...) {}
+
             HANDLE hSrc = nfl->open(s, FILE_READ_DATA | SYNCHRONIZE, FILE_SHARE_READ, FILE_OPEN, FILE_NON_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT | FILE_SEQUENTIAL_ONLY);
-            HANDLE hDst = nfl->open(d, FILE_WRITE_DATA | SYNCHRONIZE, 0, FILE_OVERWRITE_IF, FILE_NON_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT | FILE_SEQUENTIAL_ONLY);
+            HANDLE hDst = nfl->open(d, FILE_WRITE_DATA | SYNCHRONIZE, 0, dstDisposition, FILE_NON_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT | FILE_SEQUENTIAL_ONLY);
 
             // 0 total means "size unknown" (e.g. devices): show bytes + rate, no %
             LONGLONG total = 0;
@@ -99,7 +107,11 @@ class NtixCp {
                 start = scl->system_time();
             }
 
-            vector<BYTE> buffer(blocksize_);
+            // 4096-byte aligned buffer required for direct device I/O
+            auto buf_del = [](void* p) { _aligned_free(p); };
+            std::unique_ptr<void, decltype(buf_del)> raw(_aligned_malloc(blocksize_, 4096), buf_del);
+            if (!raw.get())
+                throw nexception("copy_data: _aligned_malloc", 0xC0000017L);
 
             LONGLONG done = 0;
             LONGLONG last_print = 0;
@@ -107,10 +119,10 @@ class NtixCp {
             try {
                 while (true)
                 {
-                    ULONG bytesRead = nfl->read_data(hSrc, buffer, blocksize_);
+                    ULONG bytesRead = nfl->read_data(hSrc, raw.get(), blocksize_);
                     if (bytesRead == 0)
                         break;
-                    nfl->write_data(hDst, buffer, bytesRead);
+                    nfl->write_data(hDst, raw.get(), bytesRead);
                     done += bytesRead;
 
                     if (progress_)
@@ -151,7 +163,10 @@ class NtixCp {
 
         static void copy_ea(npath s, npath d)
         {
-
+            NtixFileLib* nfl = NtixFileLib::get_instance();
+            vector<BYTE> ea = nfl->read_ea(s.resolve());
+            if (!ea.empty())
+                nfl->write_ea(d.resolve(), ea);
         }
 
         static void copy_acl(npath s, npath d)
@@ -270,8 +285,10 @@ class NtixCp {
 				if (follow)
 			    {
 			        copy_data(s,d);
-					if (preserve_)
+					if (preserve_) {
 						copy_attr(s,d);
+						copy_ea(s,d);
+					}
 				} else {
 					copy_reparse(s,d);
 				}
