@@ -371,7 +371,7 @@ int main (int argc, char* argv[])
 
 	NtixObjectLib* nol = NtixObjectLib::get_instance();
 	NtixFileLib* nfl = NtixFileLib::get_instance();
-	NtixRegistryLib* nrl = NtixRegistryLib::get_instance();
+	//NtixRegistryLib* nrl = NtixRegistryLib::get_instance();
 
 	if (ag.argument_size() == 0)
 	{

@@ -21,7 +21,7 @@ class NtixRm {
 		bool directory;
 		bool recurse;
 		bool i3confirm;
-		
+
 	void delete_recursive(npath t)
 	{
 		if (interactive)
@@ -130,7 +130,7 @@ int main (int argc, char* argv[])
 	ntixrm.interactive3 = ag.has_option("I");
 
 
-	NtixObjectLib* nol = NtixObjectLib::get_instance();
+	//NtixObjectLib* nol = NtixObjectLib::get_instance();
 	NtixFileLib* nfl = NtixFileLib::get_instance();
 
 	if (ag.argument_size() == 0)
@@ -217,4 +217,3 @@ int main (int argc, char* argv[])
 	}
 
 }
-
