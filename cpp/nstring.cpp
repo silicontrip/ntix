@@ -217,6 +217,8 @@ namespace ntix {
 	int nstring::compare (size_t pos, size_t len, const nstring& str, size_t subpos, size_t sublen) const { return this->str().compare(pos,len, str.str(), subpos, sublen); }
 	bool nstring::operator== (const nstring& o) const { return this->str() == o.str(); }
 	bool nstring::operator== (const char* o) const { return this->str() == o; }
+	bool nstring::operator!= (const nstring& o) const { return !(*this == o); }
+	bool nstring::operator!= (const char* o) const { return this->str() != o; }
 }
 
 ntix::nstring operator+ (const ntix::nstring& lhs, const ntix::nstring& rhs) { return ntix::nstring(lhs.str() + rhs.str()); }

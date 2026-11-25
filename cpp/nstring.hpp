@@ -71,6 +71,8 @@ namespace ntix {
 			int compare (size_t pos, size_t len, const nstring& str, size_t subpos, size_t sublen) const;
 			bool operator==(const nstring& o) const;
 			bool operator==(const char* o) const;
+			bool operator!=(const nstring& o) const;
+			bool operator!=(const char* o) const;
 
 			const nstring& lower() const;
 	};
