@@ -85,8 +85,7 @@ typedef struct _REPARSE_DATA_BUFFER {
 const ULONG FileProcessIdsUsingFileInformation = 47;
 // FILE_DISPOSITION_INFO_EX and its flags come from winbase.h; only the class is missing
 const ULONG FileDispositionInformationEx = 64;
-// FileLinkInformation is in wdm.h/ntifs.h (WDK only)
-const ULONG FileLinkInformation = 11;
+// FileLinkInformation is in winternl.h as FileLinkInformation = 11
 
 typedef struct _FILE_PROCESS_IDS_USING_FILE_INFORMATION {
 	ULONG NumberOfProcessIdsInList;
