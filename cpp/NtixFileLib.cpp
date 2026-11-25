@@ -510,6 +510,25 @@ NTDLL_FILE_EXPORTS
 			throw nexception("NtixFileLib::delete_file set_information", s);
 	}
 
+	ULONG NtixFileLib::read_data(HANDLE h, std::vector<BYTE>& buf, ULONG len) const
+	{
+		IO_STATUS_BLOCK isb = {};
+		NTSTATUS s = read(h, NULL, NULL, NULL, &isb, buf.data(), len, NULL, NULL);
+		if (s == STATUS_END_OF_FILE)
+			return 0;
+		if (!NT_SUCCESS(s))
+			throw nexception("NtixFileLib::read_data", s);
+		return (ULONG)isb.Information;
+	}
+
+	void NtixFileLib::write_data(HANDLE h, const std::vector<BYTE>& buf, ULONG len) const
+	{
+		IO_STATUS_BLOCK isb = {};
+		NTSTATUS s = write(h, NULL, NULL, NULL, &isb, const_cast<BYTE*>(buf.data()), len, NULL, NULL);
+		if (!NT_SUCCESS(s))
+			throw nexception("NtixFileLib::write_data", s);
+	}
+
 	reparse_link NtixFileLib::read_reparse(npath p) const
 	{
 		HANDLE hReparse = open(p, FILE_READ_DATA | SYNCHRONIZE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,

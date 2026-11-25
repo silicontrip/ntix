@@ -264,6 +264,8 @@ NTDLL_FILE_EXPORTS
 		const nstring get_type(npath p) const;
 		void set_info(npath p, file_directory_info f) const;
 		void delete_file(npath p, bool ignore_readonly = false) const;
+		ULONG read_data(HANDLE h, std::vector<BYTE>& buf, ULONG len) const;
+		void write_data(HANDLE h, const std::vector<BYTE>& buf, ULONG len) const;
 
 
 

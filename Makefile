@@ -16,6 +16,7 @@ CPP_CORE_OBJS = cpp/narguments.o cpp/nexception.o cpp/nstring.o cpp/npath.o cpp/
 TEST = bin/test_cpp.exe bin/path_test.exe
 
 TOOLS = \
+	bin/cp.exe \
 	bin/ls.exe \
 	bin/mount.exe \
 	bin/mv.exe \
@@ -41,6 +42,8 @@ bin/test_cpp.exe: test/test_cpp.cpp $(CPP_CORE_OBJS)
 bin/path_test.exe: test/path_test.cpp $(CPP_CORE_OBJS)
 	$(CXX) $(CFLAGS) $(CXXFLAGS) $^ -o $@  $(CXX_LDFLAGS) $(LIBS)
 
+bin/cp.exe: cpp/cp.cpp $(CPP_CORE_OBJS)
+	$(CXX) $(CFLAGS) $(CXXFLAGS) $^ -o $@ $(CXX_LDFLAGS) $(LIBS)
 
 bin/ls.exe: cpp/ls.cpp $(CPP_CORE_OBJS)
 	$(CXX) $(CFLAGS) $(CXXFLAGS) $^ -o $@ $(CXX_LDFLAGS) $(LIBS)
