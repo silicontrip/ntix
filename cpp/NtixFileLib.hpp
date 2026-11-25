@@ -85,6 +85,8 @@ typedef struct _REPARSE_DATA_BUFFER {
 const ULONG FileProcessIdsUsingFileInformation = 47;
 // FILE_DISPOSITION_INFO_EX and its flags come from winbase.h; only the class is missing
 const ULONG FileDispositionInformationEx = 64;
+// FileLinkInformation is in wdm.h/ntifs.h (WDK only)
+const ULONG FileLinkInformation = 11;
 
 typedef struct _FILE_PROCESS_IDS_USING_FILE_INFORMATION {
 	ULONG NumberOfProcessIdsInList;
@@ -266,6 +268,13 @@ NTDLL_FILE_EXPORTS
 		void delete_file(npath p, bool ignore_readonly = false) const;
 		ULONG read_data(HANDLE h, std::vector<BYTE>& buf, ULONG len) const;
 		void write_data(HANDLE h, const std::vector<BYTE>& buf, ULONG len) const;
+
+		void read_reparse_raw(npath p, ULONG& tag, USHORT& dataLen, std::vector<BYTE>& data) const;
+		void create_file(npath p) const;
+		void create_directory(npath p) const;
+		void create_hardlink(npath src, npath dest);
+		void create_symlink(npath dest, npath target, bool directory, bool relative) const;
+		void create_junction(npath dest, npath target) const;
 
 
 

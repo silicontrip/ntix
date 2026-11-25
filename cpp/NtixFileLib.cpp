@@ -529,6 +529,117 @@ NTDLL_FILE_EXPORTS
 			throw nexception("NtixFileLib::write_data", s);
 	}
 
+	void NtixFileLib::read_reparse_raw(npath p, ULONG& tag, USHORT& dataLen, std::vector<BYTE>& data) const
+	{
+		HANDLE h = open(p, FILE_READ_DATA | SYNCHRONIZE,
+			FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+			FILE_OPEN, FILE_OPEN_REPARSE_POINT | FILE_SYNCHRONOUS_IO_NONALERT | FILE_OPEN_FOR_BACKUP_INTENT, 0);
+
+		IO_STATUS_BLOCK isb;
+		std::vector<BYTE> buffer(MAXIMUM_REPARSE_DATA_BUFFER_SIZE);
+		REPARSE_DATA_BUFFER* rdb = (REPARSE_DATA_BUFFER*)buffer.data();
+
+		NTSTATUS s = fscontrol(h, NULL, NULL, NULL, &isb, FSCTL_GET_REPARSE_POINT,
+			NULL, 0, rdb, (ULONG)buffer.size());
+		close(h);
+		if (!NT_SUCCESS(s))
+			throw nexception("NtixFileLib::read_reparse_raw", s);
+
+		tag = rdb->ReparseTag;
+		dataLen = rdb->ReparseDataLength;
+		// REPARSE_DATA_BUFFER header: ReparseTag(4) + ReparseDataLength(2) + Reserved(2) = 8 bytes
+		data.assign(buffer.begin() + 8, buffer.begin() + 8 + dataLen);
+	}
+
+	void NtixFileLib::create_file(npath p) const
+	{
+		HANDLE h = open(p, FILE_WRITE_DATA | SYNCHRONIZE, 0, FILE_CREATE,
+			FILE_NON_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT);
+		close(h);
+	}
+
+	void NtixFileLib::create_directory(npath p) const
+	{
+		HANDLE h = open(p, FILE_LIST_DIRECTORY | SYNCHRONIZE,
+			FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, FILE_CREATE,
+			FILE_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT);
+		close(h);
+	}
+
+	void NtixFileLib::create_hardlink(npath src, npath dest)
+	{
+		// FILE_LINK_INFORMATION has identical layout to FILE_RENAME_INFORMATION
+		HANDLE hFile = open(src, FILE_READ_ATTRIBUTES | SYNCHRONIZE,
+			FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+			FILE_OPEN, FILE_NON_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT, 0);
+
+		ULONG fliSize = sizeof(FILE_RENAME_INFORMATION) + dest.wsize();
+		std::vector<BYTE> buffer(fliSize, 0);
+		FILE_RENAME_INFORMATION* fli = (FILE_RENAME_INFORMATION*)buffer.data();
+		fli->ReplaceIfExists = FALSE;
+		fli->RootDirectory = NULL;
+		fli->FileNameLength = dest.wsize();
+		memcpy(fli->FileName, dest.wdata(), dest.wsize());
+
+		IO_STATUS_BLOCK isb;
+		NTSTATUS status = set_information(hFile, &isb, fli, fliSize, FileLinkInformation);
+		close(hFile);
+		if (!NT_SUCCESS(status))
+			throw nexception("NtixFileLib::create_hardlink", status);
+	}
+
+	void NtixFileLib::create_symlink(npath dest, npath target, bool directory, bool relative) const
+	{
+		if (directory)
+			create_directory(dest);
+		else
+			create_file(dest);
+
+		const std::wstring& subName = target.nstr().wc_str();
+		USHORT subLen = (USHORT)(subName.size() * sizeof(WCHAR));
+
+		// strip \??\ prefix for the user-visible print name
+		std::wstring printStr = subName;
+		if (!relative && subName.size() >= 4 && subName.compare(0, 4, L"\\??\\") == 0)
+			printStr = subName.substr(4);
+		USHORT printLen = (USHORT)(printStr.size() * sizeof(WCHAR));
+
+		// SymbolicLinkReparseBuffer: SubstNameOff(2)+SubstNameLen(2)+PrintNameOff(2)+PrintNameLen(2)+Flags(4)+PathBuffer
+		USHORT dataSize = 4 * sizeof(USHORT) + sizeof(ULONG) + subLen + printLen;
+		std::vector<BYTE> data(dataSize, 0);
+		USHORT* fields = (USHORT*)data.data();
+		fields[0] = 0;        // SubstituteNameOffset
+		fields[1] = subLen;
+		fields[2] = subLen;   // PrintNameOffset (immediately after substitute name)
+		fields[3] = printLen;
+		*(ULONG*)(data.data() + 8) = relative ? 1 : 0;
+		memcpy(data.data() + 12, subName.data(), subLen);
+		memcpy(data.data() + 12 + subLen, printStr.data(), printLen);
+
+		write_reparse(dest, IO_REPARSE_TAG_SYMLINK, dataSize, data.data());
+	}
+
+	void NtixFileLib::create_junction(npath dest, npath target) const
+	{
+		create_directory(dest);
+
+		const std::wstring& subName = target.nstr().wc_str();
+		USHORT subLen = (USHORT)(subName.size() * sizeof(WCHAR));
+
+		// MountPointReparseBuffer: SubstNameOff(2)+SubstNameLen(2)+PrintNameOff(2)+PrintNameLen(2)+PathBuffer
+		// No Flags field (unlike symlinks). Print name is empty for junctions.
+		USHORT dataSize = 4 * sizeof(USHORT) + subLen;
+		std::vector<BYTE> data(dataSize, 0);
+		USHORT* fields = (USHORT*)data.data();
+		fields[0] = 0;      // SubstituteNameOffset
+		fields[1] = subLen;
+		fields[2] = subLen; // PrintNameOffset
+		fields[3] = 0;      // PrintNameLength (empty)
+		memcpy(data.data() + 8, subName.data(), subLen);
+
+		write_reparse(dest, IO_REPARSE_TAG_MOUNT_POINT, dataSize, data.data());
+	}
+
 	reparse_link NtixFileLib::read_reparse(npath p) const
 	{
 		HANDLE hReparse = open(p, FILE_READ_DATA | SYNCHRONIZE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
