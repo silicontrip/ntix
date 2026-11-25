@@ -63,17 +63,31 @@ class NtixCp {
 
         static void make_dir(npath d)
         {
-
+            NtixFileLib::get_instance()->create_directory(d.resolve());
         }
 
         static void copy_reparse(npath s, npath d)
         {
-
+            NtixFileLib* nfl = NtixFileLib::get_instance();
+            ULONG tag;
+            USHORT dataLen;
+            vector<BYTE> data;
+            nfl->read_reparse_raw(s.resolve(), tag, dataLen, data);
+            if (tag == IO_REPARSE_TAG_MOUNT_POINT)
+                nfl->create_directory(d.resolve());
+            else
+                nfl->create_file(d.resolve());
+            nfl->write_reparse(d, tag, dataLen, data.data());
         }
 
         static void make_reparse(npath s, npath d, int type)
         {
-
+            // type: 0=symlink file, 1=symlink dir, 2=junction
+            NtixFileLib* nfl = NtixFileLib::get_instance();
+            if (type == 2)
+                nfl->create_junction(d.resolve(), s.resolve());
+            else
+                nfl->create_symlink(d.resolve(), s.resolve(), type == 1, false);
         }
 
 	public:
@@ -145,17 +159,16 @@ class NtixCp {
 			}
 			if (hardlink_)
 			{
-
+				NtixFileLib::get_instance()->create_hardlink(s.resolve(), d.resolve());
 			} else if (symboliclink_) {
-
+				bool isdir = NtixFileLib::get_instance()->dir_exists(s.resolve());
+				NtixFileLib::get_instance()->create_symlink(d.resolve(), s.resolve(), isdir, false);
 			} else {
 				if (follow)
 			    {
 			        copy_data(s,d);
 					if (preserve_)
-					{
-
-					}
+						copy_attr(s,d);
 				} else {
 					copy_reparse(s,d);
 				}
