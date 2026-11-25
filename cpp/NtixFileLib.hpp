@@ -267,6 +267,12 @@ NTDLL_FILE_EXPORTS
 		void delete_file(npath p, bool ignore_readonly = false) const;
 		ULONG read_data(HANDLE h, std::vector<BYTE>& buf, ULONG len) const;
 		void write_data(HANDLE h, const std::vector<BYTE>& buf, ULONG len) const;
+		ULONG read_data(HANDLE h, void* buf, ULONG len) const;
+		void write_data(HANDLE h, const void* buf, ULONG len) const;
+
+		// Read all EAs as a raw FILE_FULL_EA_INFORMATION chain; returns empty if none.
+		std::vector<BYTE> read_ea(npath p) const;
+		void write_ea(npath p, const std::vector<BYTE>& ea) const;
 
 		void read_reparse_raw(npath p, ULONG& tag, USHORT& dataLen, std::vector<BYTE>& data) const;
 		void create_file(npath p) const;

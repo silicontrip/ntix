@@ -529,6 +529,68 @@ NTDLL_FILE_EXPORTS
 			throw nexception("NtixFileLib::write_data", s);
 	}
 
+	ULONG NtixFileLib::read_data(HANDLE h, void* buf, ULONG len) const
+	{
+		IO_STATUS_BLOCK isb = {};
+		NTSTATUS s = read(h, NULL, NULL, NULL, &isb, buf, len, NULL, NULL);
+		if (s == STATUS_END_OF_FILE)
+			return 0;
+		if (!NT_SUCCESS(s))
+			throw nexception("NtixFileLib::read_data", s);
+		return (ULONG)isb.Information;
+	}
+
+	void NtixFileLib::write_data(HANDLE h, const void* buf, ULONG len) const
+	{
+		IO_STATUS_BLOCK isb = {};
+		NTSTATUS s = write(h, NULL, NULL, NULL, &isb, const_cast<void*>(buf), len, NULL, NULL);
+		if (!NT_SUCCESS(s))
+			throw nexception("NtixFileLib::write_data", s);
+	}
+
+	std::vector<BYTE> NtixFileLib::read_ea(npath p) const
+	{
+		HANDLE h = open(p, FILE_READ_EA | SYNCHRONIZE,
+			FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+			FILE_OPEN, FILE_SYNCHRONOUS_IO_NONALERT | FILE_OPEN_FOR_BACKUP_INTENT);
+
+		std::vector<BYTE> buf(65536);
+		IO_STATUS_BLOCK isb = {};
+		NTSTATUS s;
+
+		for (;;) {
+			s = query_ea(h, &isb, buf.data(), (ULONG)buf.size(), FALSE, NULL, 0, NULL, TRUE);
+			// No EAs on this file
+			if (s == 0x80000012L || s == 0xC0000225L) { // STATUS_NO_EAS_ON_FILE / STATUS_NOT_FOUND
+				close(h);
+				return {};
+			}
+			if (s != STATUS_BUFFER_OVERFLOW && s != 0xC0000023L) // STATUS_BUFFER_TOO_SMALL
+				break;
+			buf.resize(buf.size() * 2);
+		}
+
+		close(h);
+		if (!NT_SUCCESS(s))
+			throw nexception("NtixFileLib::read_ea", s);
+
+		buf.resize(isb.Information);
+		return buf;
+	}
+
+	void NtixFileLib::write_ea(npath p, const std::vector<BYTE>& ea) const
+	{
+		if (ea.empty()) return;
+		HANDLE h = open(p, FILE_WRITE_EA | SYNCHRONIZE,
+			FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+			FILE_OPEN, FILE_SYNCHRONOUS_IO_NONALERT | FILE_OPEN_FOR_BACKUP_INTENT);
+		IO_STATUS_BLOCK isb = {};
+		NTSTATUS s = set_ea(h, &isb, const_cast<BYTE*>(ea.data()), (ULONG)ea.size());
+		close(h);
+		if (!NT_SUCCESS(s))
+			throw nexception("NtixFileLib::write_ea", s);
+	}
+
 	void NtixFileLib::read_reparse_raw(npath p, ULONG& tag, USHORT& dataLen, std::vector<BYTE>& data) const
 	{
 		HANDLE h = open(p, FILE_READ_DATA | SYNCHRONIZE,
