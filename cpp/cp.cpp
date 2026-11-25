@@ -40,7 +40,10 @@ class NtixCp {
 
         static void copy_attr(npath s, npath d)
         {
-
+            NtixFileLib* nfl = NtixFileLib::get_instance();
+            file_directory_info fdi = nfl->get_info(s.resolve());
+            fdi.name = d.nstr();
+            nfl->set_info(d.resolve(), fdi);
         }
 
         static void copy_ea(npath s, npath d)
