@@ -164,8 +164,6 @@ NTDLL_FILE_EXPORTS
 	bool NtixFileLib::exists(npath p) const
 	{
 
-
-
 		try {
 			HANDLE hFile = open(p, SYNCHRONIZE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, FILE_OPEN, FILE_SYNCHRONOUS_IO_NONALERT, 0);
 			close(hFile);
@@ -314,29 +312,7 @@ NTDLL_FILE_EXPORTS
 		return mlist;
 	}
 
-	void NtixFileLib::write_reparse(npath p, ULONG ReparseTag, USHORT ReparseDataLength, unsigned char* ReparseData) const
-	{
-		std::vector<BYTE> buffer(sizeof(ULONG) + sizeof(USHORT) + sizeof(USHORT) + ReparseDataLength);
-		REPARSE_DATA_BUFFER* rdb = (REPARSE_DATA_BUFFER*)buffer.data();
 
-		rdb->ReparseTag = ReparseTag;
-		rdb->ReparseDataLength = ReparseDataLength;
-		rdb->Reserved = 0;
-
-		memcpy(rdb->GenericReparseBuffer.DataBuffer,ReparseData,ReparseDataLength);
-
-		HANDLE hDir = open(p, FILE_WRITE_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-								FILE_OPEN, FILE_OPEN_REPARSE_POINT | FILE_OPEN_FOR_BACKUP_INTENT,0);
-
-		IO_STATUS_BLOCK isb;
-
-		NTSTATUS status = fscontrol(hDir, NULL, NULL, NULL, &isb, FSCTL_SET_REPARSE_POINT, rdb, (ULONG)buffer.size(), NULL, 0);
-		close(hDir);
-
-		if (!NT_SUCCESS(status))
-			throw nexception("NtixFileLib::write_reparse fscontrol",status);
-
-	}
 
 	void NtixFileLib::rename(npath sp, npath dp, BOOLEAN replace)
 	{
@@ -510,25 +486,6 @@ NTDLL_FILE_EXPORTS
 			throw nexception("NtixFileLib::delete_file set_information", s);
 	}
 
-	ULONG NtixFileLib::read_data(HANDLE h, std::vector<BYTE>& buf, ULONG len) const
-	{
-		IO_STATUS_BLOCK isb = {};
-		NTSTATUS s = read(h, NULL, NULL, NULL, &isb, buf.data(), len, NULL, NULL);
-		if (s == STATUS_END_OF_FILE)
-			return 0;
-		if (!NT_SUCCESS(s))
-			throw nexception("NtixFileLib::read_data", s);
-		return (ULONG)isb.Information;
-	}
-
-	void NtixFileLib::write_data(HANDLE h, const std::vector<BYTE>& buf, ULONG len) const
-	{
-		IO_STATUS_BLOCK isb = {};
-		NTSTATUS s = write(h, NULL, NULL, NULL, &isb, const_cast<BYTE*>(buf.data()), len, NULL, NULL);
-		if (!NT_SUCCESS(s))
-			throw nexception("NtixFileLib::write_data", s);
-	}
-
 	ULONG NtixFileLib::read_data(HANDLE h, void* buf, ULONG len) const
 	{
 		IO_STATUS_BLOCK isb = {};
@@ -591,7 +548,8 @@ NTDLL_FILE_EXPORTS
 			throw nexception("NtixFileLib::write_ea", s);
 	}
 
-	void NtixFileLib::read_reparse_raw(npath p, ULONG& tag, USHORT& dataLen, std::vector<BYTE>& data) const
+	//void NtixFileLib::read_reparse_raw(npath p, ULONG& tag, USHORT& dataLen, std::vector<BYTE>& data) const
+	reparse_info NtixFileLib::read_reparse_raw(npath p) const
 	{
 		HANDLE h = open(p, FILE_READ_DATA | SYNCHRONIZE,
 			FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
@@ -607,10 +565,39 @@ NTDLL_FILE_EXPORTS
 		if (!NT_SUCCESS(s))
 			throw nexception("NtixFileLib::read_reparse_raw", s);
 
-		tag = rdb->ReparseTag;
-		dataLen = rdb->ReparseDataLength;
+		reparse_info r;
+
+		r.tag = rdb->ReparseTag;
+		r.len = rdb->ReparseDataLength;
 		// REPARSE_DATA_BUFFER header: ReparseTag(4) + ReparseDataLength(2) + Reserved(2) = 8 bytes
-		data.assign(buffer.begin() + 8, buffer.begin() + 8 + dataLen);
+		r.data.assign(buffer.begin() + 8, buffer.begin() + 8 + r.len);
+
+		return r;
+	}
+
+	//void NtixFileLib::write_reparse(npath p, ULONG ReparseTag, USHORT ReparseDataLength, unsigned char* ReparseData) const
+	void NtixFileLib::write_reparse(npath p, reparse_info rp) const
+	{
+		std::vector<BYTE> buffer(sizeof(ULONG) + sizeof(USHORT) + sizeof(USHORT) + rp.len);
+		REPARSE_DATA_BUFFER* rdb = (REPARSE_DATA_BUFFER*)buffer.data();
+
+		rdb->ReparseTag = rp.tag;
+		rdb->ReparseDataLength = rp.len;
+		rdb->Reserved = 0;
+
+		memcpy(rdb->GenericReparseBuffer.DataBuffer,rp.data.data(),rp.len);
+
+		HANDLE hDir = open(p, FILE_WRITE_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+								FILE_OPEN, FILE_OPEN_REPARSE_POINT | FILE_OPEN_FOR_BACKUP_INTENT,0);
+
+		IO_STATUS_BLOCK isb;
+
+		NTSTATUS status = fscontrol(hDir, NULL, NULL, NULL, &isb, FSCTL_SET_REPARSE_POINT, rdb, (ULONG)buffer.size(), NULL, 0);
+		close(hDir);
+
+		if (!NT_SUCCESS(status))
+			throw nexception("NtixFileLib::write_reparse fscontrol",status);
+
 	}
 
 	void NtixFileLib::create_file(npath p) const
@@ -650,21 +637,16 @@ NTDLL_FILE_EXPORTS
 			throw nexception("NtixFileLib::create_hardlink", status);
 	}
 
-	void NtixFileLib::create_symlink(npath dest, npath target, bool directory, bool relative) const
+	//void NtixFileLib::create_symlink(npath dest, npath target, bool directory, bool relative) const
+	reparse_info NtixFileLib::reparse_symlink(nstring target, nstring display, bool relative) const
 	{
-		if (directory)
-			create_directory(dest);
-		else
-			create_file(dest);
-
-		const std::wstring& subName = target.nstr().wc_str();
-		USHORT subLen = (USHORT)(subName.size() * sizeof(WCHAR));
+		//const std::wstring& subName = target.wc_str();
+		USHORT subLen = (USHORT)target.wsize();
 
 		// strip \??\ prefix for the user-visible print name
-		std::wstring printStr = subName;
-		if (!relative && subName.size() >= 4 && subName.compare(0, 4, L"\\??\\") == 0)
-			printStr = subName.substr(4);
-		USHORT printLen = (USHORT)(printStr.size() * sizeof(WCHAR));
+		//std::wstring printStr = subName;
+
+		USHORT printLen = (USHORT)display.wsize();
 
 		// SymbolicLinkReparseBuffer: SubstNameOff(2)+SubstNameLen(2)+PrintNameOff(2)+PrintNameLen(2)+Flags(4)+PathBuffer
 		USHORT dataSize = 4 * sizeof(USHORT) + sizeof(ULONG) + subLen + printLen;
@@ -675,10 +657,18 @@ NTDLL_FILE_EXPORTS
 		fields[2] = subLen;   // PrintNameOffset (immediately after substitute name)
 		fields[3] = printLen;
 		*(ULONG*)(data.data() + 8) = relative ? 1 : 0;
-		memcpy(data.data() + 12, subName.data(), subLen);
-		memcpy(data.data() + 12 + subLen, printStr.data(), printLen);
+		memcpy(data.data() + 12, target.wdata(), target.wsize());
+		memcpy(data.data() + 12 + subLen, display.wdata(), display.wsize());
 
-		write_reparse(dest, IO_REPARSE_TAG_SYMLINK, dataSize, data.data());
+		reparse_info r;
+
+		r.tag = IO_REPARSE_TAG_SYMLINK;
+		r.len = dataSize;
+		r.data = data;
+
+		return r;
+
+		//write_reparse(dest, IO_REPARSE_TAG_SYMLINK, dataSize, data.data());
 	}
 
 	void NtixFileLib::create_junction(npath dest, npath target) const

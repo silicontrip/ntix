@@ -1,4 +1,5 @@
 #include "NtixFileLib.hpp"
+#include "NtixObjectLib.hpp"
 #include "narguments.hpp"
 #include "npath.hpp"
 #include "nstring.hpp"
@@ -137,7 +138,7 @@ class NtixCp {
                 }
             } catch (...) {
                 if (progress_)
-                    cerr << '\n';
+                    cerr << endl;
                 nfl->close(hSrc);
                 nfl->close(hDst);
                 throw;
@@ -146,7 +147,7 @@ class NtixCp {
             if (progress_)
             {
                 print_progress(done, total, start, scl->system_time());
-                cerr << '\n';
+                cerr << endl;
             }
 
             nfl->close(hSrc);
@@ -190,22 +191,34 @@ class NtixCp {
             ULONG tag;
             USHORT dataLen;
             vector<BYTE> data;
-            nfl->read_reparse_raw(s.resolve(), tag, dataLen, data);
-            if (tag == IO_REPARSE_TAG_MOUNT_POINT)
+            reparse_info r = nfl->read_reparse_raw(s.resolve());
+
+            nstring type = nfl->get_type(s.resolve())
+
+            if (type == "Reparse-Directory")
                 nfl->create_directory(d.resolve());
             else
                 nfl->create_file(d.resolve());
-            nfl->write_reparse(d, tag, dataLen, data.data());
+
+            nfl->write_reparse(d.resolve(), r);
         }
 
+        // this is only used on files
         static void make_reparse(npath s, npath d, int type)
         {
             // type: 0=symlink file, 1=symlink dir, 2=junction
             NtixFileLib* nfl = NtixFileLib::get_instance();
+
             if (type == 2)
-                nfl->create_junction(d.resolve(), s.resolve());
+                //nfl->create_junction(d.resolve(), s.resolve());
+                nfl->create_hardlink(s.resolve(), d.resolve());
             else
-                nfl->create_symlink(d.resolve(), s.resolve(), type == 1, false);
+            {
+                nfl->create_file(d.resolve());
+                reparse_info r = nfl->reparse_symlink(s.resolve(),s,false);
+                nfl->write_reparse(d.resolve(),r);
+            }
+                //nfl->create_symlink(d.resolve(), s.resolve(), type == 1, false);
         }
 
 	public:
@@ -295,14 +308,54 @@ class NtixCp {
 			}
 		}
 
-		void copy_recursive(npath s, npath d) const
+		void copy_item(npath s, npath d) const
 		{
+		    NtixFileLib* nfl = NtixFileLib::get_instance();
 
+		    nstring stype = nfl->get_type(s.resolve());
+			bool dexists = nfl->exists(d.resolve());
+			if (dexists) {
+                nstring dtype = nfl->get_type(d.resolve());
+                // more logic required
+			} else {
+			    if (stype == "Directory" || (stype=="Reparse-Directory" && follow_all_reparse_))
+			    {
+					nfl->create_directory(d.resolve());
+					if (preserve_)
+					{
+					    copy_attr(s,d);
+						copy_ea(s,d);
+						// acl
+					}
+					if (recursive_)
+					    copy_intorecursive(s,d);
+				} else if (stype=="Reparse-Directory" || stype == "Reparse") {
+				    copy_reparse(s,d);
+					if (verbose_)
+	                    cout << s << " -> " << d << endl;
+
+				} else {
+				    copy_entry(s,d);
+					if (verbose_)
+		                cout << s << " -> " << d << endl;
+				}
+			}
 		}
 
 		void copy_intorecursive(npath s, npath d) const
 		{
+		    NtixFileLib* nfl = NtixFileLib::get_instance();
+		    vector<file_directory_info> dir = nfl->read_directory(s.resolve());
+			for (file_directory_info& fd : dir)
+			{
+			    npath fname(fd.name);
+			    npath source = s.append_path(fname);
+				npath dest = d.append_path(fname);
+				if (verbose_)
+				    cout << source << " -> " << dest << endl;
 
+			    copy_item(source,dest);
+			}
 		}
 
 };
@@ -365,6 +418,7 @@ int main(int argc, char *argv[]) {
     ntixcp.nooverwrite_ = ag.has_option("n");
     ntixcp.interactive_ = ag.has_option("i");
     ntixcp.follow_reparse_ = ag.has_option("H");
+    ntixcp.follow_all_reparse_ = ag.has_option("L");
 
     vector<nstring> entries;
 
@@ -387,8 +441,8 @@ int main(int argc, char *argv[]) {
 
     NtixFileLib* nfl = NtixFileLib::get_instance();
 
-    bool target_exists = nfl->exists(target);
-    bool target_is_dir = nfl->dir_exists(target);
+    bool target_exists = nfl->exists(target.resolve());
+    bool target_is_dir = nfl->dir_exists(target.resolve());
 
     if (entries.size() > 1 && (!target_is_dir && target_exists))
     {
@@ -403,12 +457,12 @@ int main(int argc, char *argv[]) {
 			if (nfl->exists(relpath.resolve()))
 			{
 				nstring type = nfl->get_type(relpath.resolve());
-				if (type=="Directory")
+				if (type=="Directory" || (type=="Reparse-Directory" && ntixcp.follow_reparse_))
 				{
 				    if (target_exists)
 				    {
-  						if (ntixcp.recursive_) {
-                            if (target_is_dir)
+						if (ntixcp.recursive_) {
+						    if (target_is_dir)
                                 ntixcp.copy_recursive(relpath,target);
                             else
                      			cerr << "cp: " << target << ": Not a directory"  << endl;
@@ -421,6 +475,23 @@ int main(int argc, char *argv[]) {
 				        else
  							cerr << "cp: " << relpath << ": is a directory (not copied)" << endl;
    					}
+				} else if (type=="Reparse-Directory" || type=="Reparse") {
+                    if (target_exists)
+                    {
+                        if (target_is_dir)
+                        {
+                            npath dtarget = target.append_path(relpath);
+                            ntixcp.copy_reparse(relpath,dtarget);
+           					if(ntixcp.verbose_)
+                                cout << relpath << " -> " << dtarget << endl;
+                        }
+                        else
+                 			cerr << "cp: " << target << ": Not a directory"  << endl;
+                    } else {
+                        ntixcp.copy_reparse(relpath,target);
+       					if(ntixcp.verbose_)
+                            cout << relpath << " -> " << target << endl;
+                    }
 				}
 				else
 				{

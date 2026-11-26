@@ -120,6 +120,12 @@ namespace ntix {
 
 class npath;
 
+typedef struct reparse_info_t {
+    ULONG tag;
+    USHORT len;
+    std::vector<BYTE>data;
+} reparse_info;
+
 typedef struct file_directory_info_t {
 	nstring name;
 	// not doing file index because it's different to fileid which we use in overloaded open
@@ -257,7 +263,6 @@ NTDLL_FILE_EXPORTS
 
 		UINT64 disk_size(HANDLE hDevice) const;
 		std::vector<nstring> mounts() const;
-		void write_reparse(npath p, ULONG ReparseTag, USHORT ReparseDataLength, unsigned char* ReparseData) const;
 		reparse_link read_reparse(npath p) const;
 		void rename(npath sp, npath dp, BOOLEAN replace);
 		// PIDs of other processes holding a handle open on p (not a handle count -- see .cpp)
@@ -265,8 +270,7 @@ NTDLL_FILE_EXPORTS
 		const nstring get_type(npath p) const;
 		void set_info(npath p, file_directory_info f) const;
 		void delete_file(npath p, bool ignore_readonly = false) const;
-		ULONG read_data(HANDLE h, std::vector<BYTE>& buf, ULONG len) const;
-		void write_data(HANDLE h, const std::vector<BYTE>& buf, ULONG len) const;
+
 		ULONG read_data(HANDLE h, void* buf, ULONG len) const;
 		void write_data(HANDLE h, const void* buf, ULONG len) const;
 
@@ -274,7 +278,11 @@ NTDLL_FILE_EXPORTS
 		std::vector<BYTE> read_ea(npath p) const;
 		void write_ea(npath p, const std::vector<BYTE>& ea) const;
 
-		void read_reparse_raw(npath p, ULONG& tag, USHORT& dataLen, std::vector<BYTE>& data) const;
+		//void read_reparse_raw(npath p, ULONG& tag, USHORT& dataLen, std::vector<BYTE>& data) const;
+		// 		void write_reparse(npath p, ULONG ReparseTag, USHORT ReparseDataLength, unsigned char* ReparseData) const;
+		void write_reparse(npath p, reparse_info r) const;
+		reparse_info read_reparse_raw(npath p) const;
+
 		void create_file(npath p) const;
 		void create_directory(npath p) const;
 		void create_hardlink(npath src, npath dest);
