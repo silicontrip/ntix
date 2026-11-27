@@ -122,7 +122,6 @@ class npath;
 
 typedef struct reparse_info_t {
     ULONG tag;
-    USHORT len;
     std::vector<BYTE>data;
 } reparse_info;
 
@@ -263,7 +262,6 @@ NTDLL_FILE_EXPORTS
 
 		UINT64 disk_size(HANDLE hDevice) const;
 		std::vector<nstring> mounts() const;
-		reparse_link read_reparse(npath p) const;
 		void rename(npath sp, npath dp, BOOLEAN replace);
 		// PIDs of other processes holding a handle open on p (not a handle count -- see .cpp)
 		std::vector<ULONG_PTR> processes_using(npath p) const;
@@ -281,13 +279,16 @@ NTDLL_FILE_EXPORTS
 		//void read_reparse_raw(npath p, ULONG& tag, USHORT& dataLen, std::vector<BYTE>& data) const;
 		// 		void write_reparse(npath p, ULONG ReparseTag, USHORT ReparseDataLength, unsigned char* ReparseData) const;
 		void write_reparse(npath p, reparse_info r) const;
-		reparse_info read_reparse_raw(npath p) const;
+		reparse_info read_reparse(npath p) const;
+		reparse_info reparse_symlink(nstring target, nstring display, bool relative) const;
+		reparse_info reparse_junction(npath dest, npath target) const;
+		reparse_link reparse_link(const reparse_info& r) const;
 
 		void create_file(npath p) const;
 		void create_directory(npath p) const;
 		void create_hardlink(npath src, npath dest);
-		void create_symlink(npath dest, npath target, bool directory, bool relative) const;
-		void create_junction(npath dest, npath target) const;
+		//void create_symlink(npath dest, npath target, bool directory, bool relative) const;
+		//void create_junction(npath dest, npath target) const;
 
 
 

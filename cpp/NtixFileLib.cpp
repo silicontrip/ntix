@@ -549,7 +549,7 @@ NTDLL_FILE_EXPORTS
 	}
 
 	//void NtixFileLib::read_reparse_raw(npath p, ULONG& tag, USHORT& dataLen, std::vector<BYTE>& data) const
-	reparse_info NtixFileLib::read_reparse_raw(npath p) const
+	reparse_info NtixFileLib::read_reparse(npath p) const
 	{
 		HANDLE h = open(p, FILE_READ_DATA | SYNCHRONIZE,
 			FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
@@ -568,9 +568,9 @@ NTDLL_FILE_EXPORTS
 		reparse_info r;
 
 		r.tag = rdb->ReparseTag;
-		r.len = rdb->ReparseDataLength;
+		//r.len = rdb->ReparseDataLength;
 		// REPARSE_DATA_BUFFER header: ReparseTag(4) + ReparseDataLength(2) + Reserved(2) = 8 bytes
-		r.data.assign(buffer.begin() + 8, buffer.begin() + 8 + r.len);
+		r.data.assign(buffer.begin() + 8, buffer.begin() + 8 + r.data.size());
 
 		return r;
 	}
@@ -578,14 +578,14 @@ NTDLL_FILE_EXPORTS
 	//void NtixFileLib::write_reparse(npath p, ULONG ReparseTag, USHORT ReparseDataLength, unsigned char* ReparseData) const
 	void NtixFileLib::write_reparse(npath p, reparse_info rp) const
 	{
-		std::vector<BYTE> buffer(sizeof(ULONG) + sizeof(USHORT) + sizeof(USHORT) + rp.len);
+		std::vector<BYTE> buffer(sizeof(ULONG) + sizeof(USHORT) + sizeof(USHORT) + rp.data.size());
 		REPARSE_DATA_BUFFER* rdb = (REPARSE_DATA_BUFFER*)buffer.data();
 
 		rdb->ReparseTag = rp.tag;
-		rdb->ReparseDataLength = rp.len;
+		rdb->ReparseDataLength = rp.data.size();
 		rdb->Reserved = 0;
 
-		memcpy(rdb->GenericReparseBuffer.DataBuffer,rp.data.data(),rp.len);
+		memcpy(rdb->GenericReparseBuffer.DataBuffer,rp.data.data(),rp.data.size());
 
 		HANDLE hDir = open(p, FILE_WRITE_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
 								FILE_OPEN, FILE_OPEN_REPARSE_POINT | FILE_OPEN_FOR_BACKUP_INTENT,0);
@@ -642,10 +642,6 @@ NTDLL_FILE_EXPORTS
 	{
 		//const std::wstring& subName = target.wc_str();
 		USHORT subLen = (USHORT)target.wsize();
-
-		// strip \??\ prefix for the user-visible print name
-		//std::wstring printStr = subName;
-
 		USHORT printLen = (USHORT)display.wsize();
 
 		// SymbolicLinkReparseBuffer: SubstNameOff(2)+SubstNameLen(2)+PrintNameOff(2)+PrintNameLen(2)+Flags(4)+PathBuffer
@@ -663,15 +659,12 @@ NTDLL_FILE_EXPORTS
 		reparse_info r;
 
 		r.tag = IO_REPARSE_TAG_SYMLINK;
-		r.len = dataSize;
 		r.data = data;
 
 		return r;
-
-		//write_reparse(dest, IO_REPARSE_TAG_SYMLINK, dataSize, data.data());
 	}
 
-	void NtixFileLib::create_junction(npath dest, npath target) const
+	reparse_info NtixFileLib::reparse_junction(npath dest, npath target) const
 	{
 		create_directory(dest);
 
@@ -689,37 +682,31 @@ NTDLL_FILE_EXPORTS
 		fields[3] = 0;      // PrintNameLength (empty)
 		memcpy(data.data() + 8, subName.data(), subLen);
 
-		write_reparse(dest, IO_REPARSE_TAG_MOUNT_POINT, dataSize, data.data());
+		reparse_info r;
+
+		r.tag = IO_REPARSE_TAG_MOUNT_POINT;
+		r.data = data;
+
+		return r;
+
 	}
 
-	reparse_link NtixFileLib::read_reparse(npath p) const
+	// prefer reparse_info to link
+	reparse_link NtixFileLib::reparse_link(const reparse_info& r) const
 	{
-		HANDLE hReparse = open(p, FILE_READ_DATA | SYNCHRONIZE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-							   FILE_OPEN, FILE_OPEN_REPARSE_POINT | FILE_SYNCHRONOUS_IO_NONALERT |  FILE_OPEN_FOR_BACKUP_INTENT, 0);
-
-
-		IO_STATUS_BLOCK isb;
-
-
-		std::vector<BYTE> buffer(MAXIMUM_REPARSE_DATA_BUFFER_SIZE);
-		REPARSE_DATA_BUFFER* reparseBuffer = (REPARSE_DATA_BUFFER*)buffer.data();
-
-		NTSTATUS status = fscontrol(hReparse, NULL, NULL, NULL, &isb, FSCTL_GET_REPARSE_POINT, NULL, 0, reparseBuffer, (ULONG)buffer.size());
-		close(hReparse);
-		if (!NT_SUCCESS(status))
-			throw nexception("NtixFileLib::read_reparse",status);
 
 		//std::cerr << "NtixFileLib::read_reparse teg: " << reparseBuffer->ReparseTag << std::endl;
 
 		std::vector<nstring> e;
+		REPARSE_DATA_BUFFER* rdb;
 
-		if (reparseBuffer->ReparseTag == IO_REPARSE_TAG_MOUNT_POINT)
+		if (r.tag == IO_REPARSE_TAG_MOUNT_POINT)
 		{
 			nstring sub(reparseBuffer->MountPointReparseBuffer.PathBuffer + (reparseBuffer->MountPointReparseBuffer.SubstituteNameOffset / sizeof(WCHAR)), reparseBuffer->MountPointReparseBuffer.SubstituteNameLength);
 			nstring display(reparseBuffer->MountPointReparseBuffer.PathBuffer + (reparseBuffer->MountPointReparseBuffer.PrintNameOffset / sizeof(WCHAR)), reparseBuffer->MountPointReparseBuffer.PrintNameLength);
 			e.push_back(sub);
 			e.push_back(display);
-		} else if ( reparseBuffer->ReparseTag == IO_REPARSE_TAG_SYMLINK) {
+		} else if ( r.tag == IO_REPARSE_TAG_SYMLINK) {
 			nstring sub(reparseBuffer->SymbolicLinkReparseBuffer.PathBuffer + (reparseBuffer->SymbolicLinkReparseBuffer.SubstituteNameOffset / sizeof(WCHAR)), reparseBuffer->SymbolicLinkReparseBuffer.SubstituteNameLength);
 			nstring display(reparseBuffer->SymbolicLinkReparseBuffer.PathBuffer + (reparseBuffer->SymbolicLinkReparseBuffer.PrintNameOffset / sizeof(WCHAR)), reparseBuffer->SymbolicLinkReparseBuffer.PrintNameLength);
 			e.push_back(sub);
