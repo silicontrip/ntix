@@ -11,6 +11,8 @@
 using namespace std;
 using namespace ntix;
 
+// #define DEBUG
+
 class NtixCp {
 
     private:
@@ -82,8 +84,9 @@ class NtixCp {
         void copy_data(npath s, npath d) const
         {
 
-            // cerr << "NtixCp::copy_data(" << s <<", " << d <<")"<<endl;
-
+            #ifdef DEBUG
+            cerr << "NtixCp::copy_data(" << s <<", " << d <<")"<<endl;
+            #endif
             NtixFileLib* nfl = NtixFileLib::get_instance();
             NtixCoreLib* scl = NtixCoreLib::get_instance();
 
@@ -243,7 +246,9 @@ class NtixCp {
 		void copy_entry(npath s, npath d, bool follow) const
 		{
 
-		    // cerr << "NtixCp::copy_entry(" << s << ", " << d << ", " << follow << ")" << endl;
+		    #ifdef DEBUG
+		    cerr << "NtixCp::copy_entry(" << s << ", " << d << ", " << follow << ")" << endl;
+			#endif
 
 		    NtixFileLib* nfl = NtixFileLib::get_instance();
 			nstring stype = nfl->get_type(s.resolve());
@@ -316,7 +321,9 @@ class NtixCp {
 		void copy_item(npath s, npath d) const
 		{
 
+		    #ifdef DEBUG
 		    cerr << "NtixCp::copy_item(" << d << ", " << d << ")" << endl;
+			#endif
 
 		    NtixFileLib* nfl = NtixFileLib::get_instance();
 
@@ -325,6 +332,13 @@ class NtixCp {
 			if (dexists) {
                 nstring dtype = nfl->get_type(d.resolve());
                 // more logic required
+                if (dtype == "File" || dtype == "Reparse")
+                {
+				    copy_entry(s,d,follow_all_reparse_);
+					if (verbose_)
+		                cout << s << " -> " << d << endl;
+                } else
+                    cerr << "cp: " << d << ": Is a directory" << endl;
 			} else {
 			    if (stype == "Directory" || (stype=="Reparse-Directory" && follow_all_reparse_))
 			    {
@@ -349,27 +363,12 @@ class NtixCp {
 			}
 		}
 
-	/* 	void copy_recursive(npath s, npath d) const
-		{
-		    NtixFileLib* nfl = NtixFileLib::get_instance();
-            vector<file_directory_info> dir = nfl->read_directory(s.resolve());
-
-            for (file_directory_info& fd : dir)
-            {
-                npath fname(fd.name);
-                npath source = s.append_path(fname);
-				npath dest = dname.append_path(fname);
-				if (verbose_)
-				    cout << source << " -> " << dest << endl;
-
-			    copy_item(source,dest);
-            }
-		}
-*/
 		void copy_intorecursive(npath s, npath d) const
 		{
 
+		    #ifdef DEBUG
 		    cerr << "NtixCp::copy_intorecursive(" << s << ", " << d << ")" << endl;
+			#endif
 
 		    NtixFileLib* nfl = NtixFileLib::get_instance();
 		    vector<file_directory_info> dir = nfl->read_directory(s.resolve());
@@ -380,8 +379,8 @@ class NtixCp {
 			        npath fname(fd.name);
 					npath source = s.append_path(fname);
 					npath dest = d.append_path(fname);
-					if (verbose_)
-				        cout << source << " -> " << dest << endl;
+					// if (verbose_)
+				    //    cout << source << " -> " << dest << endl;
 
 			        copy_item(source,dest);
 				}
