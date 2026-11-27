@@ -120,10 +120,14 @@ namespace ntix {
 
 class npath;
 
-typedef struct reparse_info_t {
-    ULONG tag;
-    std::vector<BYTE>data;
-} reparse_info;
+struct reparse_info {
+    std::vector<BYTE> raw;
+    REPARSE_DATA_BUFFER*       rdb()       { return reinterpret_cast<REPARSE_DATA_BUFFER*>(raw.data()); }
+    const REPARSE_DATA_BUFFER* rdb() const { return reinterpret_cast<const REPARSE_DATA_BUFFER*>(raw.data()); }
+    ULONG tag() const { return rdb()->ReparseTag; }
+    nstring sub_name() const;
+    nstring print_name() const;
+};
 
 typedef struct file_directory_info_t {
 	nstring name;
@@ -141,12 +145,6 @@ typedef struct mount_point_t
 {
 	nstring symlink;
 } mount_point;
-
-typedef struct reparse_link_t
-{
-	ULONG tag;
-	std::vector<nstring>entries;
-} reparse_link;
 
 	class NtixFileLib {
 	private:
@@ -282,7 +280,6 @@ NTDLL_FILE_EXPORTS
 		reparse_info read_reparse(npath p) const;
 		reparse_info reparse_symlink(nstring target, nstring display, bool relative) const;
 		reparse_info reparse_junction(npath dest, npath target) const;
-		reparse_link reparse_link(const reparse_info& r) const;
 
 		void create_file(npath p) const;
 		void create_directory(npath p) const;
