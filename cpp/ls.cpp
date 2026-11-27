@@ -158,8 +158,8 @@ class NtixLs {
 
 						npath e(entry.name);
 						try {
-							reparse_link rl = NtixFileLib::get_instance()->read_reparse(parent.append_path(e));
-							cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << format_name(entry.name) << " -> " << rl.entries[0] << endl;
+							reparse_info rl = NtixFileLib::get_instance()->read_reparse(parent.append_path(e));
+							cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << format_name(entry.name) << " -> " << rl.sub_name() << endl;
 						} catch (nexception& e) {
 							cout << attribute_str(entry.attrib) << " " << setfill(' ') << setw(10) << entry.size << " " << date_str << " " << format_name(entry.name) << " -> [" << e.status_str() << "]" << endl;
 						}
