@@ -81,6 +81,9 @@ class NtixCp {
 
         void copy_data(npath s, npath d) const
         {
+
+            // cerr << "NtixCp::copy_data(" << s <<", " << d <<")"<<endl;
+
             NtixFileLib* nfl = NtixFileLib::get_instance();
             NtixCoreLib* scl = NtixCoreLib::get_instance();
 
@@ -92,8 +95,8 @@ class NtixCp {
                     dstDisposition = FILE_OPEN;
             } catch (...) {}
 
-            HANDLE hSrc = nfl->open(s, FILE_READ_DATA | SYNCHRONIZE, FILE_SHARE_READ, FILE_OPEN, FILE_NON_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT | FILE_SEQUENTIAL_ONLY);
-            HANDLE hDst = nfl->open(d, FILE_WRITE_DATA | SYNCHRONIZE, 0, dstDisposition, FILE_NON_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT | FILE_SEQUENTIAL_ONLY);
+            HANDLE hSrc = nfl->open(s.resolve(), FILE_READ_DATA | SYNCHRONIZE, FILE_SHARE_READ, FILE_OPEN, FILE_NON_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT | FILE_SEQUENTIAL_ONLY);
+            HANDLE hDst = nfl->open(d.resolve(), FILE_WRITE_DATA | SYNCHRONIZE, 0, dstDisposition, FILE_NON_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT | FILE_SEQUENTIAL_ONLY);
 
             // 0 total means "size unknown" (e.g. devices): show bytes + rate, no %
             LONGLONG total = 0;
@@ -154,37 +157,6 @@ class NtixCp {
             nfl->close(hDst);
         }
 
-        static void copy_attr(npath s, npath d)
-        {
-            NtixFileLib* nfl = NtixFileLib::get_instance();
-            file_directory_info fdi = nfl->get_info(s.resolve());
-            fdi.name = d.nstr();
-            nfl->set_info(d.resolve(), fdi);
-        }
-
-        static void copy_ea(npath s, npath d)
-        {
-            NtixFileLib* nfl = NtixFileLib::get_instance();
-            vector<BYTE> ea = nfl->read_ea(s.resolve());
-            if (!ea.empty())
-                nfl->write_ea(d.resolve(), ea);
-        }
-
-        static void copy_acl(npath s, npath d)
-        {
-
-        }
-
-        static void copy_ads(npath s, npath d)
-        {
-
-        }
-
-        static void make_dir(npath d)
-        {
-            NtixFileLib::get_instance()->create_directory(d.resolve());
-        }
-
 
 
         // this is only used on files
@@ -235,11 +207,46 @@ class NtixCp {
             nfl->write_reparse(d.resolve(), r);
         }
 
+        static void make_dir(npath d)
+        {
+            NtixFileLib::get_instance()->create_directory(d.resolve());
+        }
+
+        static void copy_attr(npath s, npath d)
+        {
+            NtixFileLib* nfl = NtixFileLib::get_instance();
+            file_directory_info fdi = nfl->get_info(s.resolve());
+            fdi.name = d.nstr();
+            nfl->set_info(d.resolve(), fdi);
+        }
+
+        static void copy_ea(npath s, npath d)
+        {
+            NtixFileLib* nfl = NtixFileLib::get_instance();
+            vector<BYTE> ea = nfl->read_ea(s.resolve());
+            if (!ea.empty())
+                nfl->write_ea(d.resolve(), ea);
+        }
+
+        static void copy_acl(npath s, npath d)
+        {
+
+        }
+
+        static void copy_ads(npath s, npath d)
+        {
+
+        }
+
 		// data copier source file to destination file
 		// for directory targets filename must be appended
 		void copy_entry(npath s, npath d, bool follow) const
 		{
+
+		    // cerr << "NtixCp::copy_entry(" << s << ", " << d << ", " << follow << ")" << endl;
+
 		    NtixFileLib* nfl = NtixFileLib::get_instance();
+			nstring stype = nfl->get_type(s.resolve());
 			if (nfl->exists(d))
 			{
 				if (nooverwrite_)
@@ -289,14 +296,11 @@ class NtixCp {
 			}
 			if (hardlink_)
 			{
-				//NtixFileLib::get_instance()->create_hardlink(s.resolve(), d.resolve());
 				make_reparse(d, s, 2);
 			} else if (symboliclink_) {
 			    make_reparse(d, s, 0);
-				// bool isdir = NtixFileLib::get_instance()->dir_exists(s.resolve());
-				// NtixFileLib::get_instance()->create_symlink(d.resolve(), s.resolve(), isdir, false);
 			} else {
-				if (follow)
+				if (follow || stype == "File")
 			    {
 			        copy_data(s,d);
 					if (preserve_) {
@@ -311,6 +315,9 @@ class NtixCp {
 
 		void copy_item(npath s, npath d) const
 		{
+
+		    cerr << "NtixCp::copy_item(" << d << ", " << d << ")" << endl;
+
 		    NtixFileLib* nfl = NtixFileLib::get_instance();
 
 		    nstring stype = nfl->get_type(s.resolve());
@@ -321,12 +328,12 @@ class NtixCp {
 			} else {
 			    if (stype == "Directory" || (stype=="Reparse-Directory" && follow_all_reparse_))
 			    {
-					nfl->create_directory(d.resolve());
+					make_dir(d.resolve());
 					if (preserve_)
 					{
 					    copy_attr(s,d);
 						copy_ea(s,d);
-						// acl
+						copy_acl(s,d);
 					}
 					if (recursive_)
 					    copy_intorecursive(s,d);
@@ -334,7 +341,6 @@ class NtixCp {
 				    copy_reparse(s,d);
 					if (verbose_)
 	                    cout << s << " -> " << d << endl;
-
 				} else {
 				    copy_entry(s,d,follow_all_reparse_);
 					if (verbose_)
@@ -343,13 +349,11 @@ class NtixCp {
 			}
 		}
 
-		void copy_recursive(npath s, npath d) const
+	/* 	void copy_recursive(npath s, npath d) const
 		{
 		    NtixFileLib* nfl = NtixFileLib::get_instance();
             vector<file_directory_info> dir = nfl->read_directory(s.resolve());
-            npath pname = s.basename();
-            npath dname = d.append_path(pname);
-            make_dir(dname);
+
             for (file_directory_info& fd : dir)
             {
                 npath fname(fd.name);
@@ -361,20 +365,26 @@ class NtixCp {
 			    copy_item(source,dest);
             }
 		}
-
+*/
 		void copy_intorecursive(npath s, npath d) const
 		{
+
+		    cerr << "NtixCp::copy_intorecursive(" << s << ", " << d << ")" << endl;
+
 		    NtixFileLib* nfl = NtixFileLib::get_instance();
 		    vector<file_directory_info> dir = nfl->read_directory(s.resolve());
 			for (file_directory_info& fd : dir)
 			{
-			    npath fname(fd.name);
-			    npath source = s.append_path(fname);
-				npath dest = d.append_path(fname);
-				if (verbose_)
-				    cout << source << " -> " << dest << endl;
+			    if (fd.name != "." && fd.name != "..")
+				{
+			        npath fname(fd.name);
+					npath source = s.append_path(fname);
+					npath dest = d.append_path(fname);
+					if (verbose_)
+				        cout << source << " -> " << dest << endl;
 
-			    copy_item(source,dest);
+			        copy_item(source,dest);
+				}
 			}
 		}
 
@@ -406,7 +416,6 @@ int main(int argc, char *argv[]) {
     ag.add_req("n","nooverwrite",0);
     ag.add_req("i","interactive",0);
     ag.add_req("H","follow",0);
-
 
    	if (!ag.parse())
 	{
@@ -483,7 +492,27 @@ int main(int argc, char *argv[]) {
 				    {
 						if (ntixcp.recursive_) {
 						    if (target_is_dir)
-                                ntixcp.copy_recursive(relpath,target);
+						    {
+						        npath pname = relpath.basename();
+                                npath dname = target.append_path(pname);
+                                if (!nfl->exists(dname.resolve()))
+                                {
+                                    ntixcp.make_dir(dname);
+								}
+
+                                if (nfl->dir_exists(dname.resolve()))
+                                {
+                         			if (ntixcp.preserve_)
+    					            {
+    									ntixcp.copy_attr(relpath,dname);
+    									ntixcp.copy_ea(relpath,dname);
+    									ntixcp.copy_acl(relpath,dname);
+    								}
+                                    ntixcp.copy_intorecursive(relpath,dname);
+                                } else
+                             			cerr << "cp: " << dname << ": Not a directory"  << endl;
+
+							}
                             else
                      			cerr << "cp: " << target << ": Not a directory"  << endl;
                         } else {
@@ -491,7 +520,10 @@ int main(int argc, char *argv[]) {
                         }
                     } else {
    					    if (ntixcp.recursive_)
+                        {
+                            ntixcp.make_dir(target);
  							ntixcp.copy_intorecursive(relpath,target);
+                        }
 				        else
  							cerr << "cp: " << relpath << ": is a directory (not copied)" << endl;
    					}
@@ -500,6 +532,7 @@ int main(int argc, char *argv[]) {
                     {
                         if (target_is_dir)
                         {
+                            // copies the reparse into the directory
                             npath dtarget = target.append_path(relpath);
                             ntixcp.copy_reparse(relpath,dtarget);
            					if(ntixcp.verbose_)
