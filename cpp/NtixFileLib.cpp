@@ -321,7 +321,7 @@ NTDLL_FILE_EXPORTS
 
 		IO_STATUS_BLOCK isb;
 
-		NTSTATUS status = device_ioctl(hDevice, NULL, NULL, NULL, &isb, FSCTL_DISMOUNT_VOLUME,
+		NTSTATUS status = fscontrol(hDevice, NULL, NULL, NULL, &isb, FSCTL_DISMOUNT_VOLUME,
             NULL, 0, NULL, 0);
 
 		close(hDevice);
