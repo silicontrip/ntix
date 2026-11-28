@@ -98,7 +98,7 @@ class NtixCp {
                     try {
                         nfl->dismount(s.resolve());
                     } catch (const nexception& e) {
-                            cerr << "Unable to dismount " << s << ": " << hex << e.status() << endl;
+                            cerr << "Unable to dismount " << s << ": " << e << endl;
                     }
                 }
             } catch (...) {}
@@ -240,6 +240,11 @@ class NtixCp {
 
         static void copy_attr(npath s, npath d)
         {
+
+            #ifdef DEBUG
+		    cerr << "NtixCp::copy_attr(" << s << ", " << d << ")" << endl;
+						#endif
+
             NtixFileLib* nfl = NtixFileLib::get_instance();
             file_directory_info fdi = nfl->get_info(s.resolve());
             fdi.name = d.nstr();
@@ -274,70 +279,82 @@ class NtixCp {
 			#endif
 
 		    NtixFileLib* nfl = NtixFileLib::get_instance();
-			nstring stype = nfl->get_type(s.resolve());
-			if (nfl->exists(d))
-			{
-				if (nooverwrite_)
-					return;
+			NtixObjectLib* nol = NtixObjectLib::get_instance();
 
-			    if (interactive_)
-				{
-					stringstream ss;
-					ss << "overwrite " << d << "?";
-					if (!NtixCoreLib::get_instance()->prompt_yes(ss.str()))
-					{
-					    cerr << "not overwritten" << endl;
-						return;
-					}
-				}
-
-				if (force_)
-				{
-					// clear read-only so the destination can be opened for writing
-					file_directory_info fdi = nfl->get_info(d.resolve());
-					if (fdi.attrib & FILE_ATTRIBUTE_READONLY)
-					{
-						fdi.attrib &= ~FILE_ATTRIBUTE_READONLY;
-						nfl->set_info(d.resolve(), fdi);
-					}
-					// if another process holds the file open, rename it away so we
-					// can create a fresh file at the destination path
-					vector<ULONG_PTR> procs = nfl->processes_using(d.resolve());
-					if (!procs.empty())
-					{
-						for (;;) {
-							string post = NtixCoreLib::get_instance()->unique_string();
-							stringstream ss;
-							ss << d.nstr() << "." << post;
-							nstring tname(ss.str());
-							npath tpath(tname);
-							try {
-								nfl->rename(d.resolve(), tpath.resolve(), false);
-								break;
-							} catch (nexception& e) {
-								if (e.status() != 0xC0000035L)
-									throw;
-							}
-						}
-					}
-				}
-			}
-			if (hardlink_)
+			if (s.type() == "Object")
 			{
-				make_reparse(d, s, 2);
-			} else if (symboliclink_) {
-			    make_reparse(d, s, 0);
-			} else {
-				if (follow || stype == "File")
-			    {
-			        copy_data(s,d);
-					if (preserve_) {
-						copy_attr(s,d);
-						copy_ea(s,d);
-					}
-				} else {
-					copy_reparse(s,d);
-				}
+			    nstring otype = nol->get_type(s);
+				if (otype == "Device") // or
+ 			        copy_data(s,d);
+
+			} else  {
+
+    			nstring stype = nfl->get_type(s.resolve());
+    			if (nfl->exists(d))
+    			{
+    				if (nooverwrite_)
+    					return;
+
+    			    if (interactive_)
+    				{
+    					stringstream ss;
+    					ss << "overwrite " << d << "?";
+    					if (!NtixCoreLib::get_instance()->prompt_yes(ss.str()))
+    					{
+    					    cerr << "not overwritten" << endl;
+    						return;
+    					}
+    				}
+
+    				if (force_)
+    				{
+    					// clear read-only so the destination can be opened for writing
+    					file_directory_info fdi = nfl->get_info(d.resolve());
+    					if (fdi.attrib & FILE_ATTRIBUTE_READONLY)
+    					{
+    						fdi.attrib &= ~FILE_ATTRIBUTE_READONLY;
+    						nfl->set_info(d.resolve(), fdi);
+    					}
+    					// if another process holds the file open, rename it away so we
+    					// can create a fresh file at the destination path
+    					vector<ULONG_PTR> procs = nfl->processes_using(d.resolve());
+    					if (!procs.empty())
+    					{
+    						for (;;) {
+    							string post = NtixCoreLib::get_instance()->unique_string();
+    							stringstream ss;
+    							ss << d.nstr() << "." << post;
+    							nstring tname(ss.str());
+    							npath tpath(tname);
+    							try {
+    								nfl->rename(d.resolve(), tpath.resolve(), false);
+    								break;
+    							} catch (nexception& e) {
+    								if (e.status() != 0xC0000035L)
+    									throw;
+    							}
+    						}
+    					}
+    				}
+    			} else {
+        			if (hardlink_)
+        			{
+        				make_reparse(d, s, 2);
+        			} else if (symboliclink_) {
+        			    make_reparse(d, s, 0);
+        			} else {
+        				if (follow || stype == "File")
+        			    {
+        			        copy_data(s,d);
+        					if (preserve_) {
+        						copy_attr(s,d);
+        						copy_ea(s,d);
+        					}
+        				} else {
+        					copy_reparse(s,d);
+        				}
+        			}
+                }
 			}
 		}
 
@@ -498,6 +515,7 @@ int main(int argc, char *argv[]) {
     }
 
     NtixFileLib* nfl = NtixFileLib::get_instance();
+    NtixObjectLib* nol = NtixObjectLib::get_instance();
 
     bool target_exists = nfl->exists(target.resolve());
     bool target_is_dir = nfl->dir_exists(target.resolve());
@@ -512,7 +530,25 @@ int main(int argc, char *argv[]) {
 	{
 		try {
 			npath relpath = npath(ent);
-			if (nfl->exists(relpath.resolve()))
+			if (relpath.type() == "Object")
+			{
+			    // some Devices.
+				nstring otype = nol->get_type(relpath); // object paths are always absolute
+				if (otype=="Device")
+				{
+				    npath dtarget = target;
+
+				    if (target_exists && target_is_dir)
+					    dtarget = target.append_path(relpath);
+
+					ntixcp.copy_entry(relpath,dtarget,ntixcp.follow_reparse_);
+					if(ntixcp.verbose_)
+					    cout << relpath << " -> " << dtarget << endl;
+				}
+				// Maybe add other types that NT expose like byte streams.
+				// Sections?
+			}
+			else if (nfl->exists(relpath.resolve()))
 			{
 				nstring type = nfl->get_type(relpath.resolve());
 				if (type=="Directory" || (type=="Reparse-Directory" && ntixcp.follow_reparse_))
