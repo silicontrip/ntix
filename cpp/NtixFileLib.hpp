@@ -85,8 +85,7 @@ typedef struct _REPARSE_DATA_BUFFER {
 const ULONG FileProcessIdsUsingFileInformation = 47;
 // FILE_DISPOSITION_INFO_EX and its flags come from winbase.h; only the class is missing
 const ULONG FileDispositionInformationEx = 64;
-// FileLinkInformation is in wdm.h/ntifs.h (WDK only)
-const ULONG FileLinkInformation = 11;
+// FileLinkInformation is in winternl.h as FileLinkInformation = 11
 
 typedef struct _FILE_PROCESS_IDS_USING_FILE_INFORMATION {
 	ULONG NumberOfProcessIdsInList;
@@ -121,6 +120,15 @@ namespace ntix {
 
 class npath;
 
+struct reparse_info {
+    std::vector<BYTE> raw;
+    REPARSE_DATA_BUFFER*       rdb()       { return reinterpret_cast<REPARSE_DATA_BUFFER*>(raw.data()); }
+    const REPARSE_DATA_BUFFER* rdb() const { return reinterpret_cast<const REPARSE_DATA_BUFFER*>(raw.data()); }
+    ULONG tag() const { return rdb()->ReparseTag; }
+    nstring sub_name() const;
+    nstring print_name() const;
+};
+
 typedef struct file_directory_info_t {
 	nstring name;
 	// not doing file index because it's different to fileid which we use in overloaded open
@@ -137,12 +145,6 @@ typedef struct mount_point_t
 {
 	nstring symlink;
 } mount_point;
-
-typedef struct reparse_link_t
-{
-	ULONG tag;
-	std::vector<nstring>entries;
-} reparse_link;
 
 	class NtixFileLib {
 	private:
@@ -258,23 +260,33 @@ NTDLL_FILE_EXPORTS
 
 		UINT64 disk_size(HANDLE hDevice) const;
 		std::vector<nstring> mounts() const;
-		void write_reparse(npath p, ULONG ReparseTag, USHORT ReparseDataLength, unsigned char* ReparseData) const;
-		reparse_link read_reparse(npath p) const;
+		void dismount(npath dev) const;
 		void rename(npath sp, npath dp, BOOLEAN replace);
 		// PIDs of other processes holding a handle open on p (not a handle count -- see .cpp)
 		std::vector<ULONG_PTR> processes_using(npath p) const;
 		const nstring get_type(npath p) const;
 		void set_info(npath p, file_directory_info f) const;
 		void delete_file(npath p, bool ignore_readonly = false) const;
-		ULONG read_data(HANDLE h, std::vector<BYTE>& buf, ULONG len) const;
-		void write_data(HANDLE h, const std::vector<BYTE>& buf, ULONG len) const;
 
-		void read_reparse_raw(npath p, ULONG& tag, USHORT& dataLen, std::vector<BYTE>& data) const;
+		ULONG read_data(HANDLE h, void* buf, ULONG len) const;
+		void write_data(HANDLE h, const void* buf, ULONG len) const;
+
+		// Read all EAs as a raw FILE_FULL_EA_INFORMATION chain; returns empty if none.
+		std::vector<BYTE> read_ea(npath p) const;
+		void write_ea(npath p, const std::vector<BYTE>& ea) const;
+
+		//void read_reparse_raw(npath p, ULONG& tag, USHORT& dataLen, std::vector<BYTE>& data) const;
+		// 		void write_reparse(npath p, ULONG ReparseTag, USHORT ReparseDataLength, unsigned char* ReparseData) const;
+		void write_reparse(npath p, reparse_info r) const;
+		reparse_info read_reparse(npath p) const;
+		reparse_info reparse_symlink(nstring target, nstring display, bool relative) const;
+		reparse_info reparse_junction(npath dest, npath target) const;
+
 		void create_file(npath p) const;
 		void create_directory(npath p) const;
 		void create_hardlink(npath src, npath dest);
-		void create_symlink(npath dest, npath target, bool directory, bool relative) const;
-		void create_junction(npath dest, npath target) const;
+		//void create_symlink(npath dest, npath target, bool directory, bool relative) const;
+		//void create_junction(npath dest, npath target) const;
 
 
 
