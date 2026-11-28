@@ -89,13 +89,36 @@ class NtixCp {
             #endif
             NtixFileLib* nfl = NtixFileLib::get_instance();
             NtixCoreLib* scl = NtixCoreLib::get_instance();
+            NtixObjectLib* nol = NtixObjectLib::get_instance();
+
+            try {
+                nstring stype = nol->get_type(s.resolve());
+                if ((stype == "Volume" || stype == "Device") && unmount_)
+                {
+                    try {
+                        nfl->dismount(s.resolve());
+                    } catch (const nexception& e) {
+                            cerr << "Unable to dismount " << s << ": " << hex << e.status() << endl;
+                    }
+                }
+            } catch (...) {}
 
             // Devices need FILE_OPEN not FILE_OVERWRITE_IF
             ULONG dstDisposition = FILE_OVERWRITE_IF;
             try {
-                nstring dtype = nfl->get_type(d.resolve());
+                nstring dtype = nol->get_type(d.resolve());
                 if (dtype == "Volume" || dtype == "Device")
+                {
                     dstDisposition = FILE_OPEN;
+                    if (unmount_)
+                    {
+                        try {
+                            nfl->dismount(d.resolve());  // technically should not need to resolve, all NT paths are absolute
+                        } catch (const nexception& e) {
+                                cerr << "Unable to dismount " << d << ": " << hex << e.status() << endl;
+                        }
+                    }
+                }
             } catch (...) {}
 
             HANDLE hSrc = nfl->open(s.resolve(), FILE_READ_DATA | SYNCHRONIZE, FILE_SHARE_READ, FILE_OPEN, FILE_NON_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT | FILE_SEQUENTIAL_ONLY);
@@ -192,7 +215,7 @@ class NtixCp {
 		bool preserve_; // p attr, ACL, EA, ADS
 		bool symboliclink_; // s
 		bool progress_; // P
-
+		bool unmount_; // u
 		int blocksize_; // b
 
         static void copy_reparse(npath s, npath d)
@@ -397,8 +420,13 @@ void print_usage()
     cerr << "cp [options] <src path> [<src path] <dst path>" << endl;
     cerr << "Options:" << endl;
     cerr << " -b <number>       Use blocksize. Required for copying devices" << endl;
+    cerr << " -H                Follow reparse points specified on command line" << endl;
+    cerr << " -i                Prompt before overwriting destination files" << endl;
+    cerr << " -L                Follow reparse points when traversing filesystem" << endl;
+    cerr << " -n                Do not overwrite destination files" << endl;
     cerr << " -P                Show progress" << endl;
     cerr << " -r|-R             Recursive. Destination must be a directory" << endl;
+    cerr << " -u                Unmount device before reading or writing" << endl; // Because you can't unmount as a separate discrete action, NT will mount it again
     cerr << " -v                Show each copied item" << endl;
 }
 
@@ -415,6 +443,7 @@ int main(int argc, char *argv[]) {
     ag.add_req("n","nooverwrite",0);
     ag.add_req("i","interactive",0);
     ag.add_req("H","follow",0);
+    ag.add_req("u","unmount",0);
 
    	if (!ag.parse())
 	{
@@ -447,6 +476,7 @@ int main(int argc, char *argv[]) {
     ntixcp.interactive_ = ag.has_option("i");
     ntixcp.follow_reparse_ = ag.has_option("H");
     ntixcp.follow_all_reparse_ = ag.has_option("L");
+    ntixcp.unmount_ = ag.has_option("u");
 
     vector<nstring> entries;
 
