@@ -312,7 +312,24 @@ NTDLL_FILE_EXPORTS
 		return mlist;
 	}
 
+	void NtixFileLib::dismount(npath dev) const
+	{
 
+	    HANDLE hDevice = open(dev, FILE_READ_DATA | SYNCHRONIZE,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            FILE_OPEN, FILE_SYNCHRONOUS_IO_NONALERT);
+
+		IO_STATUS_BLOCK isb;
+
+		NTSTATUS status = device_ioctl(hDevice, NULL, NULL, NULL, &isb, FSCTL_DISMOUNT_VOLUME,
+            NULL, 0, NULL, 0);
+
+		close(hDevice);
+
+		if (!NT_SUCCESS(status))
+			throw nexception("NtixFileLib::dismount device_ioctl", status);
+
+	}
 
 	void NtixFileLib::rename(npath sp, npath dp, BOOLEAN replace)
 	{

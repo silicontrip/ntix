@@ -260,6 +260,7 @@ NTDLL_FILE_EXPORTS
 
 		UINT64 disk_size(HANDLE hDevice) const;
 		std::vector<nstring> mounts() const;
+		void dismount(npath dev) const;
 		void rename(npath sp, npath dp, BOOLEAN replace);
 		// PIDs of other processes holding a handle open on p (not a handle count -- see .cpp)
 		std::vector<ULONG_PTR> processes_using(npath p) const;
